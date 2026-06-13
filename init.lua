@@ -199,6 +199,8 @@ map("n", "j", "v:count == 0 ? 'gj' : 'j'", { expr = true })
 map("n", "k", "v:count == 0 ? 'gk' : 'k'", { expr = true })
 map("x", "<", "<gv")
 map("x", ">", ">gv")
+map({ "n", "x", "o" }, "H", "^")
+map({ "n", "x", "o" }, "L", "$")
 map("n", "<Leader>w", "<Cmd>silent w!<CR>")
 map("n", "<Leader>q", "<Cmd>silent q!<CR>")
 map("n", "<Leader>x", "<Cmd>silent x!<CR>")
@@ -235,7 +237,7 @@ vim.pack.add({
     "https://github.com/numToStr/Comment.nvim",
     "https://github.com/gbprod/substitute.nvim",
     "https://github.com/stevearc/oil.nvim",
-    "https://github.com/lewis6991/gitsigns.nvim",
+    "https://github.com/lewis6991/gitsigns.nvim", -- TODO: Add diffview.nvim and neogit
     "https://github.com/ibhagwan/fzf-lua",
     { src = "https://github.com/rose-pine/neovim", name = "rose-pine" },
     "https://github.com/neovim/nvim-lspconfig",
@@ -264,7 +266,8 @@ map({ "x", "o" }, "ia", function() sel.select_textobject("@parameter.inner", "te
 map({ "x", "o" }, "ai", function() sel.select_textobject("@conditional.outer", "textobjects") end)
 map({ "x", "o" }, "ii", function() sel.select_textobject("@conditional.inner", "textobjects") end)
 map({ "x", "o" }, "gb", function() sel.select_textobject("@comment.outer", "textobjects") end)
-map({"x", "o"}, "ae", ":<C-u>keepjumps normal! ggVG<CR>", { silent = true })
+map("o", "ae", "<Cmd>keepjumps normal! mzggVG<CR><Cmd>keepjumps silent! normal! `zzz<CR>", { silent = true })
+map("x", "ae", ":<C-u>keepjumps normal! mzggVG<CR>", { silent = true })
 map("n", "<Leader>sf", function() swap.swap_next("@function.outer") end)
 map("n", "<Leader>Sf", function() swap.swap_previous("@function.outer") end)
 map("n", "<Leader>sc", function() swap.swap_next("@class.outer") end)
@@ -296,8 +299,8 @@ treesj.setup({
 map("n", "<Leader>t", treesj.toggle)
 
 require("nvim-surround").setup()
--- TODO: This stopped working?
-map("n", "yS", "<Plug>(nvim-surround-normal)$")
+map("n", "yH", "<Plug>(nvim-surround-normal)^")
+map("n", "yL", "<Plug>(nvim-surround-normal)$")
 
 require("nvim-autopairs").setup()
 require("Comment").setup()
@@ -343,13 +346,12 @@ local goto_hunk = repeatable_move.make_repeatable_move(function(opts)
     if vim.wo.diff then
         vim.cmd.normal({ opts.forward and "]h" or "[h", bang = true })
     else
-        gitsigns.nav_hunk(opts.forward and "next" or "prev")
+        gitsigns.nav_hunk(opts.forward and "next" or "prev", { navigation_message = false })
     end
 end)
 map("n", "]h", function() goto_hunk({ forward = true }) end)
 map("n", "[h", function() goto_hunk({ forward = false }) end)
 map("n", "<Leader>hs", gitsigns.stage_hunk)
--- TODO: Unstage hunk
 map("n", "<Leader>hr", gitsigns.reset_hunk)
 map("v", "<Leader>hs", function()
     gitsigns.stage_hunk({ vim.fn.line("."), vim.fn.line("v") })
