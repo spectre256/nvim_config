@@ -369,10 +369,13 @@ fzf_lua.setup({
 vim.keymap.set("n", "<Leader>f", fzf_lua.files)
 vim.keymap.set("n", "<Leader>F", fzf_lua.oldfiles)
 vim.keymap.set("n", "<Leader>b", fzf_lua.buffers)
-vim.keymap.set("n", "<Leader>g", fzf_lua.live_grep_native)
-vim.keymap.set("x", "<Leader>g", fzf_lua.grep_visual)
-vim.keymap.set("n", "<Leader>hh", fzf_lua.helptags)
+vim.keymap.set("n", "<Leader>/", fzf_lua.live_grep_native)
+vim.keymap.set("x", "<Leader>/", fzf_lua.grep_visual)
+vim.keymap.set("n", "<Leader>H", fzf_lua.helptags)
 vim.keymap.set("n", "<Leader>u", fzf_lua.undotree)
+vim.keymap.set("n", "<Leader>gs", fzf_lua.git_status)
+vim.keymap.set("n", "<Leader>gh", fzf_lua.git_hunks)
+vim.keymap.set("n", "<Leader>gl", fzf_lua.git_commits)
 
 require("rose-pine").setup({
     variant = "main",
