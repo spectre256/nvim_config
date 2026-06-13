@@ -1,20 +1,24 @@
-vim.opt.number = true
-vim.opt.relativenumber = true
-vim.opt.tabstop = 4
-vim.opt.shiftwidth = 4
-vim.opt.expandtab = true
-vim.opt.ignorecase = true
-vim.opt.smartcase = true
-vim.opt.scrolloff = 8
-vim.opt.sidescrolloff = 8
-vim.opt.wrap = false
-vim.opt.cursorline = true
-vim.opt.cmdheight = 0
-vim.opt.pumheight = 12
-vim.opt.showmode = false
-vim.opt.list = true
-vim.opt.listchars = { tab = "⇥ ", trail = "⋅" }
-vim.opt.fillchars = {
+local opt = vim.opt
+local api = vim.api
+local map = vim.keymap.set
+
+opt.number = true
+opt.relativenumber = true
+opt.tabstop = 4
+opt.shiftwidth = 4
+opt.expandtab = true
+opt.ignorecase = true
+opt.smartcase = true
+opt.scrolloff = 8
+opt.sidescrolloff = 8
+opt.wrap = false
+opt.cursorline = true
+opt.cmdheight = 0
+opt.pumheight = 12
+opt.showmode = false
+opt.list = true
+opt.listchars = { tab = "⇥ ", trail = "⋅" }
+opt.fillchars = {
     eob = " ",
     trunc = "…",
     truncrl = "…",
@@ -23,21 +27,22 @@ vim.opt.fillchars = {
     foldclose = "▸",
     foldsep = "│",
     foldinner = "║",
-}
-vim.opt.winborder = "solid"
-vim.opt.splitright = true
-vim.opt.splitbelow = true
-vim.opt.swapfile = false
-vim.opt.undofile = true
-vim.opt.foldmethod = "expr"
-vim.opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-vim.opt.foldenable = false
-vim.opt.foldcolumn = "auto"
-vim.opt.foldtext = ""
-vim.opt.signcolumn = "yes"
-vim.opt.statuscolumn = "%C%s%=%{v:relnum==0 ? v:lnum : v:relnum} " -- Fix left aligned number
-vim.opt.laststatus = 3
-vim.opt.statusline = table.concat({
+} -- TODO: Add diff chars?
+opt.winborder = "solid"
+opt.splitright = true
+opt.splitbelow = true
+opt.swapfile = false
+opt.undofile = true
+opt.foldmethod = "expr"
+opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+opt.foldenable = false
+opt.foldcolumn = "auto"
+-- TODO: Make this a little fancier? Show line count and last line of fold, highlighted correctly?
+opt.foldtext = ""
+opt.signcolumn = "yes"
+opt.statuscolumn = "%C%s%=%{v:relnum==0 ? v:lnum : v:relnum} " -- Fix left aligned number
+opt.laststatus = 3
+opt.statusline = table.concat({
     "%{%v:lua.render_mode()%}",
     "%#Statusline# %<%f ",
     "%#Modified#%{&modified ? '●' : ''}",
@@ -65,8 +70,8 @@ function _G.render_mode()
     return modes[vim.fn.mode():sub(1, 1)] or ""
 end
 
-vim.opt.showtabline = 2
-vim.opt.tabline = "%!v:lua.render_tabline()"
+opt.showtabline = 2
+opt.tabline = "%!v:lua.render_tabline()"
 
 local function render_tab(i, tab)
     local win = vim.api.nvim_tabpage_get_win(tab)
@@ -122,18 +127,18 @@ function _G.render_tabline()
 end
 
 -- Highlight all while searching, clear on exit
-vim.opt.incsearch = true
-vim.opt.hlsearch = false
-vim.api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave" }, {
+opt.incsearch = true
+opt.hlsearch = false
+api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave" }, {
     pattern = { "/", "\\?" },
     callback = function(ev)
-        vim.opt.hlsearch = ev.event == "CmdlineEnter"
+        opt.hlsearch = ev.event == "CmdlineEnter"
     end,
 })
 
 -- TODO: Writing mode settings
-vim.api.nvim_create_autocmd("FileType", {
-    pattern = { "markdown", "text", "typst", "tex", "plaintex", "help" },
+api.nvim_create_autocmd("FileType", {
+    pattern = { "markdown", "text", "typst", "tex", "plaintex", "help", "man" },
     callback = function()
         vim.opt_local.number = false
         vim.opt_local.relativenumber = false
@@ -151,7 +156,7 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 -- Better terminal mode settings
-vim.api.nvim_create_autocmd("TermOpen", {
+api.nvim_create_autocmd("TermOpen", {
     callback = function(ev)
         if vim.bo[ev.buf].filetype == "fzf" then return end
 
@@ -159,65 +164,67 @@ vim.api.nvim_create_autocmd("TermOpen", {
         vim.cmd.startinsert()
 
         local opts = { buffer = ev.buf }
-        vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", opts)
-        vim.keymap.set("t", "<C-w>", "<C-\\><C-n><C-w>", opts)
-        vim.keymap.set("t", "<C-h>", "<C-\\><C-n><C-w>h", opts)
-        vim.keymap.set("t", "<C-j>", "<C-\\><C-n><C-w>j", opts)
-        vim.keymap.set("t", "<C-k>", "<C-\\><C-n><C-w>k", opts)
-        vim.keymap.set("t", "<C-l>", "<C-\\><C-n><C-w>l", opts)
-        vim.keymap.set("t", "<C-n>", "<C-\\><C-n><Cmd>tabnext<CR>", opts)
-        vim.keymap.set("t", "<C-p>", "<C-\\><C-n><Cmd>tabprevious<CR>", opts)
+        map("t", "<Esc>", "<C-\\><C-n>", opts)
+        map("t", "<C-w>", "<C-\\><C-n><C-w>", opts)
+        map("t", "<C-h>", "<C-\\><C-n><C-w>h", opts)
+        map("t", "<C-j>", "<C-\\><C-n><C-w>j", opts)
+        map("t", "<C-k>", "<C-\\><C-n><C-w>k", opts)
+        map("t", "<C-l>", "<C-\\><C-n><C-w>l", opts)
+        map("t", "<C-n>", "<C-\\><C-n><Cmd>tabnext<CR>", opts)
+        map("t", "<C-p>", "<C-\\><C-n><Cmd>tabprevious<CR>", opts)
     end,
 })
 
 -- Get rid of annoying process exited messages
-vim.api.nvim_create_autocmd("TermClose", {
+api.nvim_create_autocmd("TermClose", {
     callback = function(ev)
         if vim.v.event.status == 0 and vim.bo[ev.buf].filetype ~= "fzf" then
-            vim.api.nvim_buf_delete(ev.buf, { force = true })
+            api.nvim_buf_delete(ev.buf, { force = true })
         end
     end,
 })
 
-vim.api.nvim_create_autocmd("TextYankPost", {
+api.nvim_create_autocmd("TextYankPost", {
     callback = function()
         vim.hl.on_yank({ higroup = "Search", timeout = 500 })
     end,
 })
 
-vim.opt.updatetime = 500
-vim.opt.lazyredraw = true
+opt.updatetime = 500
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
-vim.keymap.set("n", "<Leader>w", "<Cmd>silent w!<CR>")
-vim.keymap.set("n", "<Leader>q", "<Cmd>silent q!<CR>")
-vim.keymap.set("n", "<Leader>x", "<Cmd>silent x!<CR>")
-vim.keymap.set("n", "<Leader>W", "<Cmd>silent wa!<CR>")
-vim.keymap.set("n", "<Leader>Q", "<Cmd>silent qa!<CR>")
-vim.keymap.set("n", "<Leader>X", "<Cmd>silent xa!<CR>")
-vim.keymap.set({ "n", "v" }, "<Leader>y", "\"+y")
-vim.keymap.set({ "n", "v" }, "<Leader>p", "\"+p")
-vim.keymap.set("n", "<Leader>P", "o<Esc>\"+p==")
-vim.keymap.set("n", "<C-d>", "<C-d>zz")
-vim.keymap.set("n", "<C-u>", "<C-u>zz")
-vim.keymap.set("n", "n", "nzz")
-vim.keymap.set("n", "N", "Nzz")
-vim.keymap.set("n", "<C-h>", "<C-w>h")
-vim.keymap.set("n", "<C-j>", "<C-w>j")
-vim.keymap.set("n", "<C-k>", "<C-w>k")
-vim.keymap.set("n", "<C-l>", "<C-w>l")
-vim.keymap.set("n", "<C-n>", "<Cmd>tabnext<CR>")
-vim.keymap.set("n", "<C-p>", "<Cmd>tabprevious<CR>")
-vim.keymap.set("n", "<C-S-n>", "<Cmd>tabnew<CR>")
-vim.keymap.set("n", "<C-S-p>", "<Cmd>tabclose<CR>")
-vim.keymap.set("n", "<C-S-h>", "<Cmd>leftabove vsplit<CR>")
-vim.keymap.set("n", "<C-S-j>", "<Cmd>rightbelow split<CR>")
-vim.keymap.set("n", "<C-S-k>", "<Cmd>leftabove split<CR>")
-vim.keymap.set("n", "<C-S-l>", "<Cmd>rightbelow vsplit<CR>")
--- TODO: completeopt? menu height?
-vim.keymap.set("i", "<C-Space>", "<C-x><C-o>")
+map("n", "j", "v:count == 0 ? 'gj' : 'j'", { expr = true })
+map("n", "k", "v:count == 0 ? 'gk' : 'k'", { expr = true })
+map("x", "<", "<gv")
+map("x", ">", ">gv")
+map("n", "<Leader>w", "<Cmd>silent w!<CR>")
+map("n", "<Leader>q", "<Cmd>silent q!<CR>")
+map("n", "<Leader>x", "<Cmd>silent x!<CR>")
+map("n", "<Leader>W", "<Cmd>silent wa!<CR>")
+map("n", "<Leader>Q", "<Cmd>silent qa!<CR>")
+map("n", "<Leader>X", "<Cmd>silent xa!<CR>")
+map({ "n", "v" }, "<Leader>y", "\"+y")
+map({ "n", "v" }, "<Leader>p", "\"+p")
+map("n", "<Leader>P", "o<Esc>\"+p==")
+map("n", "<C-d>", "<C-d>zz")
+map("n", "<C-u>", "<C-u>zz")
+map("n", "n", "nzz")
+map("n", "N", "Nzz")
+map("n", "<C-h>", "<C-w>h")
+map("n", "<C-j>", "<C-w>j")
+map("n", "<C-k>", "<C-w>k")
+map("n", "<C-l>", "<C-w>l")
+map("n", "<C-n>", "<Cmd>tabnext<CR>")
+map("n", "<C-p>", "<Cmd>tabprevious<CR>")
+map("n", "<C-S-n>", "<Cmd>tabnew<CR>")
+map("n", "<C-S-p>", "<Cmd>tabclose<CR>")
+map("n", "<C-S-h>", "<Cmd>leftabove vsplit<CR>")
+map("n", "<C-S-j>", "<Cmd>rightbelow split<CR>")
+map("n", "<C-S-k>", "<Cmd>leftabove split<CR>")
+map("n", "<C-S-l>", "<Cmd>rightbelow vsplit<CR>")
+map("i", "<C-Space>", "<C-x><C-o>")
 
 vim.pack.add({
     { src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
@@ -238,7 +245,7 @@ vim.pack.add({
 require('vim._core.ui2').enable()
 
 -- Autostart treesitter
-vim.api.nvim_create_autocmd("FileType", {
+api.nvim_create_autocmd("FileType", {
     callback = function()
         pcall(vim.treesitter.start)
         vim.bo.indentexpr = "v:lua.require('nvim-treesitter').indentexpr()"
@@ -248,47 +255,49 @@ vim.api.nvim_create_autocmd("FileType", {
 local sel = require("nvim-treesitter-textobjects.select")
 local swap = require("nvim-treesitter-textobjects.swap")
 local move = require("nvim-treesitter-textobjects.move")
-vim.keymap.set({ "x", "o" }, "af", function() sel.select_textobject("@function.outer", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "if", function() sel.select_textobject("@function.inner", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "ac", function() sel.select_textobject("@class.outer", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "ic", function() sel.select_textobject("@class.inner", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "aa", function() sel.select_textobject("@parameter.outer", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "ia", function() sel.select_textobject("@parameter.inner", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "ai", function() sel.select_textobject("@conditional.outer", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "ii", function() sel.select_textobject("@conditional.inner", "textobjects") end)
-vim.keymap.set({ "x", "o" }, "gb", function() sel.select_textobject("@comment.outer", "textobjects") end)
-vim.keymap.set("n", "<Leader>sf", function() swap.swap_next("@function.outer") end)
-vim.keymap.set("n", "<Leader>Sf", function() swap.swap_previous("@function.outer") end)
-vim.keymap.set("n", "<Leader>sc", function() swap.swap_next("@class.outer") end)
-vim.keymap.set("n", "<Leader>Sc", function() swap.swap_previous("@class.outer") end)
-vim.keymap.set("n", "<Leader>sa", function() swap.swap_next("@parameter.inner") end)
-vim.keymap.set("n", "<Leader>Sa", function() swap.swap_previous("@parameter.inner") end)
-vim.keymap.set("n", "<Leader>si", function() swap.swap_next("@conditional.inner") end)
-vim.keymap.set("n", "<Leader>Si", function() swap.swap_previous("@conditional.inner") end)
-vim.keymap.set("n", "]f", function() move.goto_next_start("@function.outer", "textobjects") end)
-vim.keymap.set("n", "[f", function() move.goto_previous_start("@function.outer","textobjects") end)
-vim.keymap.set("n", "]c", function() move.goto_next_start("@class.outer", "textobjects") end)
-vim.keymap.set("n", "[c", function() move.goto_previous_start("@class.outer", "textobjects") end)
-vim.keymap.set("n", "]p", function() move.goto_next_start("@parameter.inner", "textobjects") end)
-vim.keymap.set("n", "[p", function() move.goto_previous_start("@parameter.inner", "textobjects") end)
+map({ "x", "o" }, "af", function() sel.select_textobject("@function.outer", "textobjects") end)
+map({ "x", "o" }, "if", function() sel.select_textobject("@function.inner", "textobjects") end)
+map({ "x", "o" }, "ac", function() sel.select_textobject("@class.outer", "textobjects") end)
+map({ "x", "o" }, "ic", function() sel.select_textobject("@class.inner", "textobjects") end)
+map({ "x", "o" }, "aa", function() sel.select_textobject("@parameter.outer", "textobjects") end)
+map({ "x", "o" }, "ia", function() sel.select_textobject("@parameter.inner", "textobjects") end)
+map({ "x", "o" }, "ai", function() sel.select_textobject("@conditional.outer", "textobjects") end)
+map({ "x", "o" }, "ii", function() sel.select_textobject("@conditional.inner", "textobjects") end)
+map({ "x", "o" }, "gb", function() sel.select_textobject("@comment.outer", "textobjects") end)
+map({"x", "o"}, "ae", ":<C-u>keepjumps normal! ggVG<CR>", { silent = true })
+map("n", "<Leader>sf", function() swap.swap_next("@function.outer") end)
+map("n", "<Leader>Sf", function() swap.swap_previous("@function.outer") end)
+map("n", "<Leader>sc", function() swap.swap_next("@class.outer") end)
+map("n", "<Leader>Sc", function() swap.swap_previous("@class.outer") end)
+map("n", "<Leader>sa", function() swap.swap_next("@parameter.inner") end)
+map("n", "<Leader>Sa", function() swap.swap_previous("@parameter.inner") end)
+map("n", "<Leader>si", function() swap.swap_next("@conditional.inner") end)
+map("n", "<Leader>Si", function() swap.swap_previous("@conditional.inner") end)
+map("n", "]f", function() move.goto_next_start("@function.outer", "textobjects") end)
+map("n", "[f", function() move.goto_previous_start("@function.outer","textobjects") end)
+map("n", "]c", function() move.goto_next_start("@class.outer", "textobjects") end)
+map("n", "[c", function() move.goto_previous_start("@class.outer", "textobjects") end)
+map("n", "]p", function() move.goto_next_start("@parameter.inner", "textobjects") end)
+map("n", "[p", function() move.goto_previous_start("@parameter.inner", "textobjects") end)
 
 local repeatable_move = require("nvim-treesitter-textobjects.repeatable_move")
-vim.keymap.set({ "n", "x", "o" }, ";", repeatable_move.repeat_last_move)
-vim.keymap.set({ "n", "x", "o" }, ",", repeatable_move.repeat_last_move_opposite)
-vim.keymap.set({ "n", "x", "o" }, "f", repeatable_move.builtin_f_expr, { expr = true })
-vim.keymap.set({ "n", "x", "o" }, "F", repeatable_move.builtin_F_expr, { expr = true })
-vim.keymap.set({ "n", "x", "o" }, "t", repeatable_move.builtin_t_expr, { expr = true })
-vim.keymap.set({ "n", "x", "o" }, "T", repeatable_move.builtin_T_expr, { expr = true })
+map({ "n", "x", "o" }, ";", repeatable_move.repeat_last_move)
+map({ "n", "x", "o" }, ",", repeatable_move.repeat_last_move_opposite)
+map({ "n", "x", "o" }, "f", repeatable_move.builtin_f_expr, { expr = true })
+map({ "n", "x", "o" }, "F", repeatable_move.builtin_F_expr, { expr = true })
+map({ "n", "x", "o" }, "t", repeatable_move.builtin_t_expr, { expr = true })
+map({ "n", "x", "o" }, "T", repeatable_move.builtin_T_expr, { expr = true })
 
 local treesj = require("treesj")
 treesj.setup({
     use_default_keymaps = false,
     max_join_length = 1024,
 })
-vim.keymap.set("n", "<Leader>t", treesj.toggle)
+map("n", "<Leader>t", treesj.toggle)
 
 require("nvim-surround").setup()
-vim.keymap.set("n", "yS", "<Plug>(nvim-surround-normal)$")
+-- TODO: This stopped working?
+map("n", "yS", "<Plug>(nvim-surround-normal)$")
 
 require("nvim-autopairs").setup()
 require("Comment").setup()
@@ -297,22 +306,23 @@ local substitute = require("substitute")
 local exchange = require("substitute.exchange")
 local range = require("substitute.range")
 substitute.setup()
-vim.keymap.set("n", "s", substitute.operator, { noremap = true })
-vim.keymap.set("n", "ss", substitute.line, { noremap = true })
-vim.keymap.set("n", "S", substitute.eol, { noremap = true })
-vim.keymap.set("x", "s", substitute.visual, { noremap = true })
-vim.keymap.set("n", "<Leader>e", exchange.operator, { noremap = true })
-vim.keymap.set("n", "<Leader>ee", exchange.line, { noremap = true })
-vim.keymap.set("n", "<Leader>eq", exchange.cancel, { noremap = true })
-vim.keymap.set("x", "<Leader>e", exchange.visual, { noremap = true })
+map("n", "s", substitute.operator, { noremap = true })
+map("n", "ss", substitute.line, { noremap = true })
+map("n", "S", substitute.eol, { noremap = true })
+map("x", "s", substitute.visual, { noremap = true })
+map("n", "<Leader>e", exchange.operator, { noremap = true })
+map("n", "<Leader>ee", exchange.line, { noremap = true })
+map("n", "<Leader>eq", exchange.cancel, { noremap = true })
+map("x", "<Leader>e", exchange.visual, { noremap = true })
 -- TODO: Fix this and add more motions?
-vim.keymap.set("n", "<Leader>sw", function() exchange.operator({ motion = "w" }) end, { noremap = true })
-vim.keymap.set("n", "<Leader>r",  range.operator, { noremap = true })
-vim.keymap.set("n", "<Leader>rr", range.word,     { noremap = true })
+map("n", "<Leader>sw", function() exchange.operator({ motion = "w" }) end, { noremap = true })
+map("n", "<Leader>r",  range.operator, { noremap = true })
+map("n", "<Leader>rr", range.word, { noremap = true })
 
 require("oil").setup()
-vim.keymap.set("n", "<Leader>.", "<Cmd>e .<CR>")
-vim.keymap.set("n", "<Leader>,", function()
+map("n", "<Leader><Leader>", "<C-^>")
+map("n", "<Leader>.", "<Cmd>e .<CR>")
+map("n", "<Leader>,", function()
     vim.cmd.e(vim.fs.root(0, {
         {
             ".git",
@@ -328,7 +338,7 @@ end)
 
 local gitsigns = require("gitsigns")
 gitsigns.setup()
-vim.keymap.set({"o", "x"}, "ah", "<Cmd>Gitsigns select_hunk<CR>")
+map({"o", "x"}, "ah", "<Cmd>Gitsigns select_hunk<CR>")
 local goto_hunk = repeatable_move.make_repeatable_move(function(opts)
     if vim.wo.diff then
         vim.cmd.normal({ opts.forward and "]h" or "[h", bang = true })
@@ -336,27 +346,28 @@ local goto_hunk = repeatable_move.make_repeatable_move(function(opts)
         gitsigns.nav_hunk(opts.forward and "next" or "prev")
     end
 end)
-vim.keymap.set("n", "]h", function() goto_hunk({ forward = true }) end)
-vim.keymap.set("n", "[h", function() goto_hunk({ forward = false }) end)
-vim.keymap.set("n", "<Leader>hs", gitsigns.stage_hunk)
-vim.keymap.set("n", "<Leader>hr", gitsigns.reset_hunk)
-vim.keymap.set("v", "<Leader>hs", function()
+map("n", "]h", function() goto_hunk({ forward = true }) end)
+map("n", "[h", function() goto_hunk({ forward = false }) end)
+map("n", "<Leader>hs", gitsigns.stage_hunk)
+-- TODO: Unstage hunk
+map("n", "<Leader>hr", gitsigns.reset_hunk)
+map("v", "<Leader>hs", function()
     gitsigns.stage_hunk({ vim.fn.line("."), vim.fn.line("v") })
 end)
-vim.keymap.set("v", "<Leader>hr", function()
+map("v", "<Leader>hr", function()
     gitsigns.reset_hunk({ vim.fn.line("."), vim.fn.line("v") })
 end)
-vim.keymap.set("n", "<Leader>hp", gitsigns.preview_hunk)
-vim.keymap.set("n", "<Leader>hi", gitsigns.preview_hunk_inline)
-vim.keymap.set("n", "<Leader>hS", gitsigns.stage_buffer)
-    vim.keymap.set("n", "<Leader>hR", gitsigns.reset_buffer)
-vim.keymap.set("n", "<Leader>hb", function()
+map("n", "<Leader>hp", gitsigns.preview_hunk)
+map("n", "<Leader>hi", gitsigns.preview_hunk_inline)
+map("n", "<Leader>hS", gitsigns.stage_buffer)
+map("n", "<Leader>hR", gitsigns.reset_buffer)
+map("n", "<Leader>hb", function()
   gitsigns.blame_line({ full = true })
 end)
-vim.keymap.set('n', '<leader>hd', gitsigns.diffthis)
-vim.keymap.set('n', '<leader>hD', function() gitsigns.diffthis("~1") end)
-vim.keymap.set("n", "<leader>hq", gitsigns.setqflist)
-vim.keymap.set("n", "<leader>hQ", function() gitsigns.setqflist("all") end)
+map('n', '<leader>hd', gitsigns.diffthis)
+map('n', '<leader>hD', function() gitsigns.diffthis("~1") end)
+map("n", "<leader>hq", gitsigns.setqflist)
+map("n", "<leader>hQ", function() gitsigns.setqflist("all") end)
 
 local fzf_lua = require("fzf-lua")
 fzf_lua.setup({
@@ -366,16 +377,16 @@ fzf_lua.setup({
         preview = { border = "solid" },
     },
 })
-vim.keymap.set("n", "<Leader>f", fzf_lua.files)
-vim.keymap.set("n", "<Leader>F", fzf_lua.oldfiles)
-vim.keymap.set("n", "<Leader>b", fzf_lua.buffers)
-vim.keymap.set("n", "<Leader>/", fzf_lua.live_grep_native)
-vim.keymap.set("x", "<Leader>/", fzf_lua.grep_visual)
-vim.keymap.set("n", "<Leader>H", fzf_lua.helptags)
-vim.keymap.set("n", "<Leader>u", fzf_lua.undotree)
-vim.keymap.set("n", "<Leader>gs", fzf_lua.git_status)
-vim.keymap.set("n", "<Leader>gh", fzf_lua.git_hunks)
-vim.keymap.set("n", "<Leader>gl", fzf_lua.git_commits)
+map("n", "<Leader>f", fzf_lua.files)
+map("n", "<Leader>F", fzf_lua.oldfiles)
+map("n", "<Leader>b", fzf_lua.buffers)
+map("n", "<Leader>/", fzf_lua.live_grep_native)
+map("x", "<Leader>/", fzf_lua.grep_visual)
+map("n", "<Leader>H", fzf_lua.helptags)
+map("n", "<Leader>u", fzf_lua.undotree)
+map("n", "<Leader>gs", fzf_lua.git_status)
+map("n", "<Leader>gh", fzf_lua.git_hunks)
+map("n", "<Leader>gl", fzf_lua.git_commits)
 
 require("rose-pine").setup({
     variant = "main",
@@ -416,42 +427,40 @@ vim.cmd.colorscheme("rose-pine")
 
 require("mason").setup()
 
+local sev = vim.diagnostic.severity
 vim.diagnostic.config({
     signs = {
         text = {
-            [vim.diagnostic.severity.ERROR] = "⦸",
-            [vim.diagnostic.severity.WARN]  = "⊝",
-            [vim.diagnostic.severity.HINT]  = "⊛",
-            [vim.diagnostic.severity.INFO]  = "⊚",
+            [sev.ERROR] = "⦸",
+            [sev.WARN]  = "⊝",
+            [sev.HINT]  = "⊛",
+            [sev.INFO]  = "⊚",
         },
     },
     virtual_text = true,
     update_in_insert = false,
 })
 
-vim.api.nvim_create_autocmd("LspAttach", {
+api.nvim_create_autocmd("LspAttach", {
     callback = function(ev)
-        -- local client = vim.lsp.get_client_by_id(ev.data.client_id)
-        -- if client and client.server_capabilities.inlayHintProvider then
-        --     vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
-        -- end
+        -- vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
 
         local opts = { buffer = ev.buf }
-        vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-        vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
-        vim.keymap.set("n", "gr", fzf_lua.lsp_references)
-        vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
-        vim.keymap.set("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, opts)
-        vim.keymap.set("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, opts)
-        vim.keymap.set("n", "<Leader>lR", vim.lsp.buf.rename, opts)
-        vim.keymap.set("n", "<Leader>la", vim.lsp.buf.code_action, opts)
-        vim.keymap.set("n", "<Leader>lf", function() vim.lsp.buf.format({ async = true }) end, opts)
-        vim.keymap.set("n", "<Leader>ll", vim.diagnostic.open_float, opts)
-        vim.keymap.set("n", "<Leader>ld", fzf_lua.diagnostics_document)
-        vim.keymap.set("n", "<Leader>lD", fzf_lua.diagnostics_workspace)
-        vim.keymap.set("n", "<Leader>ls", fzf_lua.lsp_document_symbols)
-        vim.keymap.set("n", "<Leader>lS", fzf_lua.lsp_workspace_symbols)
-        vim.keymap.set("n", "<Leader>li", fzf_lua.lsp_implementations)
+        map("n", "gd", vim.lsp.buf.definition, opts)
+        map("n", "gD", vim.lsp.buf.declaration, opts)
+        map("n", "gr", fzf_lua.lsp_references)
+        map("n", "K", vim.lsp.buf.hover, opts)
+        map("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, opts)
+        map("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, opts)
+        map("n", "<Leader>lR", vim.lsp.buf.rename, opts)
+        map("n", "<Leader>la", vim.lsp.buf.code_action, opts)
+        map("n", "<Leader>lf", function() vim.lsp.buf.format({ async = true }) end, opts)
+        map("n", "<Leader>ll", vim.diagnostic.open_float, opts)
+        map("n", "<Leader>ld", fzf_lua.diagnostics_document)
+        map("n", "<Leader>lD", fzf_lua.diagnostics_workspace)
+        map("n", "<Leader>ls", fzf_lua.lsp_document_symbols)
+        map("n", "<Leader>lS", fzf_lua.lsp_workspace_symbols)
+        map("n", "<Leader>li", fzf_lua.lsp_implementations)
     end,
 })
 
@@ -486,7 +495,7 @@ vim.lsp.config('lua_ls', {
                 checkThirdParty = false,
                 library = {
                     vim.env.VIMRUNTIME,
-                    vim.api.nvim_get_runtime_file("lua/lspconfig", false)[1],
+                    api.nvim_get_runtime_file("lua/lspconfig", false)[1],
                 },
             },
         })
