@@ -17,17 +17,23 @@ opt.cmdheight = 0
 opt.pumheight = 12
 opt.showmode = false
 opt.list = true
-opt.listchars = { tab = "⇥ ", trail = "⋅" }
+opt.listchars = {
+    tab = "⇥ ",
+    trail = "⋅",
+    leadmultispace = "⎸   ",
+}
 opt.fillchars = {
-    eob = " ",
-    trunc = "…",
-    truncrl = "…",
     fold = " ",
     foldopen = "▾",
     foldclose = "▸",
     foldsep = "│",
     foldinner = "║",
-} -- TODO: Add diff chars?
+    diff = "―",
+    eob = " ",
+    lastline = "…",
+    trunc = "…",
+    truncrl = "…",
+}
 opt.winborder = "solid"
 opt.splitright = true
 opt.splitbelow = true
@@ -75,10 +81,6 @@ local function get_highlighted_row(bufnr, row, trim_space)
         end
     end
 
-    if not vim.deep_equal(result[#result], last_node) then
-        table.insert(result, last_node)
-    end
-
     return result
 end
 
@@ -88,12 +90,16 @@ function _G.render_foldtext()
     local bufnr = api.nvim_get_current_buf()
 
     local first_row = get_highlighted_row(bufnr, foldstart, false)
-    local fold_marker = { string.format(" ... %d lines ... ", foldend - foldstart - 1), { "Folded" } }
-    local last_row = get_highlighted_row(bufnr, foldend, true)
+    local fold_fmt = vim.wo.diff and "  ↵ %d lines " or " ―― %d lines ―― "
+    local fold_marker = { string.format(fold_fmt, foldend - foldstart - 1), { "Folded" } }
 
     local result = first_row
     table.insert(result, fold_marker)
-    table.move(last_row, 1, #last_row, #result + 1, result)
+
+    if not vim.wo.diff then
+        local last_row = get_highlighted_row(bufnr, foldend, true)
+        table.move(last_row, 1, #last_row, #result + 1, result)
+    end
 
     return result
 end
@@ -466,6 +472,7 @@ require("rose-pine").setup({
         WinSeparator = { fg = "surface", bg = "base", inherit = false },
         VertSplit = { link = "WinSeparator" },
         Folded = { fg = "highlight_med" },
+        NonText = { fg = "highlight_low" },
         Modified = { fg = "pine", bg = "surface" },
         ModifiedSel = { fg = "pine", bg = "base" },
         Readonly = { fg = "love", bg = "surface" },
