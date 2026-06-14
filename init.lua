@@ -257,6 +257,15 @@ api.nvim_create_autocmd("TextYankPost", {
 
 opt.updatetime = 500
 
+-- Don't show messages for anything below an error
+local notify = vim.notify
+---@diagnostic disable-next-line: duplicate-set-field
+vim.notify = function(msg, level, opts)
+    if level < vim.log.levels.ERROR then return end
+
+    notify(msg, level, opts)
+end
+
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
@@ -536,7 +545,6 @@ api.nvim_create_autocmd("LspAttach", {
     end,
 })
 
--- TODO: Still get failed to spawn warnings, how do I suppress those?
 local exclude = { "gitlab_duo" }
 for _, config in ipairs(vim.lsp.get_configs()) do
     if not vim.tbl_contains(exclude, config.name) then
