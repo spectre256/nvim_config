@@ -37,8 +37,67 @@ opt.foldmethod = "expr"
 opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 opt.foldenable = false
 opt.foldcolumn = "auto"
--- TODO: Make this a little fancier? Show line count and last line of fold, highlighted correctly?
-opt.foldtext = ""
+opt.foldtext = "v:lua.render_foldtext()"
+-- TODO: Weirdness happens when opening cmd second time? puts me into cmd buffer?
+
+local function get_highlighted_row(bufnr, row, trim_space)
+    local line = api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1]
+    local col = 0
+
+    if trim_space then
+        local _, count = line:find("^%s*")
+        col = count or col
+    end
+
+    local result = {}
+    local last_node = nil
+
+    for i = col + 1, #line do
+        local text = line:sub(i, i)
+        local info = vim.inspect_pos(bufnr, row - 1, i - 1)
+        local hls = {}
+
+        for _, t in ipairs(info.syntax) do
+            table.insert(hls, t.hl_group)
+        end
+        for _, t in ipairs(info.treesitter) do
+            table.insert(hls, t.hl_group)
+        end
+        for _, t in ipairs(info.semantic_tokens) do
+            table.insert(hls, t.opts.hl_group)
+        end
+
+        if last_node and vim.deep_equal(hls, last_node[2]) then
+            last_node[1] = last_node[1] .. text
+        else
+            last_node = { text, hls }
+            table.insert(result, last_node)
+        end
+    end
+
+    if not vim.deep_equal(result[#result], last_node) then
+        table.insert(result, last_node)
+    end
+
+    return result
+end
+
+function _G.render_foldtext()
+    local foldstart = vim.v.foldstart
+    local foldend = vim.v.foldend
+    local bufnr = api.nvim_get_current_buf()
+
+    local first_row = get_highlighted_row(bufnr, foldstart, false)
+    local fold_marker = { string.format(" ... %d lines ... ", foldend - foldstart - 1), { "Folded" } }
+    local last_row = get_highlighted_row(bufnr, foldend, true)
+
+    local result = first_row
+    table.insert(result, fold_marker)
+    table.move(last_row, 1, #last_row, #result + 1, result)
+
+    return result
+end
+
 opt.signcolumn = "yes"
 opt.statuscolumn = "%C%s%=%{v:relnum==0 ? v:lnum : v:relnum} " -- Fix left aligned number
 opt.laststatus = 3
@@ -276,6 +335,7 @@ map("n", "<Leader>sa", function() swap.swap_next("@parameter.inner") end)
 map("n", "<Leader>Sa", function() swap.swap_previous("@parameter.inner") end)
 map("n", "<Leader>si", function() swap.swap_next("@conditional.inner") end)
 map("n", "<Leader>Si", function() swap.swap_previous("@conditional.inner") end)
+-- TODO: Enable for visual and operator-pending mode too?
 map("n", "]f", function() move.goto_next_start("@function.outer", "textobjects") end)
 map("n", "[f", function() move.goto_previous_start("@function.outer","textobjects") end)
 map("n", "]c", function() move.goto_next_start("@class.outer", "textobjects") end)
@@ -405,6 +465,7 @@ require("rose-pine").setup({
         MatchParen = { link = "Search" },
         WinSeparator = { fg = "surface", bg = "base", inherit = false },
         VertSplit = { link = "WinSeparator" },
+        Folded = { fg = "highlight_med" },
         Modified = { fg = "pine", bg = "surface" },
         ModifiedSel = { fg = "pine", bg = "base" },
         Readonly = { fg = "love", bg = "surface" },
@@ -466,6 +527,7 @@ api.nvim_create_autocmd("LspAttach", {
     end,
 })
 
+-- TODO: Still get failed to spawn warnings, how do I suppress those?
 local exclude = { "gitlab_duo" }
 for _, config in ipairs(vim.lsp.get_configs()) do
     if not vim.tbl_contains(exclude, config.name) then
