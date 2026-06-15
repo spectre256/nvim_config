@@ -105,7 +105,7 @@ function _G.render_foldtext()
 end
 
 opt.signcolumn = "yes"
-opt.statuscolumn = "%C%s%=%{v:relnum==0 ? v:lnum : v:relnum} " -- Fix left aligned number
+opt.statuscolumn = "%C%s%=%{v:virtnum != 0 ? '' : v:relnum == 0 ? v:lnum : v:relnum} " -- Fix left aligned number
 opt.laststatus = 3
 opt.statusline = table.concat({
     "%{%v:lua.render_mode()%}",
