@@ -274,6 +274,7 @@ map("n", "k", "v:count == 0 ? 'gk' : 'k'", { expr = true })
 map("x", "<", "<gv")
 map("x", ">", ">gv")
 map({ "n", "x", "o" }, "H", "^")
+map({ "n", "x", "o" }, "M", "gm")
 map({ "n", "x", "o" }, "L", "$")
 map("n", "<Leader>w", "<Cmd>silent w!<CR>")
 map("n", "<Leader>q", "<Cmd>silent q!<CR>")
@@ -300,6 +301,11 @@ map("n", "<C-S-h>", "<Cmd>leftabove vsplit<CR>")
 map("n", "<C-S-j>", "<Cmd>rightbelow split<CR>")
 map("n", "<C-S-k>", "<Cmd>leftabove split<CR>")
 map("n", "<C-S-l>", "<Cmd>rightbelow vsplit<CR>")
+map("n", "<C-b><C-b>", "<C-^>")
+map("n", "<C-b>n", "<Cmd>new<CR>")
+map("n", "<C-b>c", "<Cmd>bdelete<CR>") -- TODO: Smarter handling here?
+map("n", "<C-b>w", "<Cmd>bwipeout<CR>")
+-- TODO: <C-b>o mapping?
 map("i", "<C-Space>", "<C-x><C-o>")
 
 vim.pack.add({
@@ -331,6 +337,7 @@ api.nvim_create_autocmd("FileType", {
 local sel = require("nvim-treesitter-textobjects.select")
 local swap = require("nvim-treesitter-textobjects.swap")
 local move = require("nvim-treesitter-textobjects.move")
+-- TODO: Add lhs and rhs text objects
 map({ "x", "o" }, "af", function() sel.select_textobject("@function.outer", "textobjects") end)
 map({ "x", "o" }, "if", function() sel.select_textobject("@function.inner", "textobjects") end)
 map({ "x", "o" }, "ac", function() sel.select_textobject("@class.outer", "textobjects") end)
@@ -373,6 +380,7 @@ treesj.setup({
 map("n", "<Leader>t", treesj.toggle)
 
 require("nvim-surround").setup()
+-- TODO: Can I make a "surround with conditional" keybind? then yS would put it on a newline too? that'd be so cool!
 map("n", "yH", "<Plug>(nvim-surround-normal)^")
 map("n", "yL", "<Plug>(nvim-surround-normal)$")
 
@@ -397,7 +405,6 @@ map("n", "<Leader>r",  range.operator, { noremap = true })
 map("n", "<Leader>rr", range.word, { noremap = true })
 
 require("oil").setup()
-map("n", "<Leader><Leader>", "<C-^>")
 map("n", "<Leader>.", "<Cmd>e .<CR>")
 map("n", "<Leader>,", function()
     vim.cmd.e(vim.fs.root(0, {
@@ -440,10 +447,10 @@ map("n", "<Leader>hR", gitsigns.reset_buffer)
 map("n", "<Leader>hb", function()
   gitsigns.blame_line({ full = true })
 end)
-map('n', '<leader>hd', gitsigns.diffthis)
-map('n', '<leader>hD', function() gitsigns.diffthis("~1") end)
-map("n", "<leader>hq", gitsigns.setqflist)
-map("n", "<leader>hQ", function() gitsigns.setqflist("all") end)
+map("n", "<Leader>hd", gitsigns.diffthis)
+map("n", "<Leader>hD", function() gitsigns.diffthis("~1") end)
+map("n", "<Leader>hq", gitsigns.setqflist)
+map("n", "<Leader>hQ", function() gitsigns.setqflist("all") end)
 
 local fzf_lua = require("fzf-lua")
 fzf_lua.setup({
