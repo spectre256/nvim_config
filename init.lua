@@ -317,8 +317,10 @@ vim.pack.add({
     "https://github.com/numToStr/Comment.nvim",
     "https://github.com/gbprod/substitute.nvim",
     "https://github.com/stevearc/oil.nvim",
-    "https://github.com/lewis6991/gitsigns.nvim", -- TODO: Add diffview.nvim and neogit
     "https://github.com/ibhagwan/fzf-lua",
+    "https://github.com/lewis6991/gitsigns.nvim",
+    "https://github.com/sindrets/diffview.nvim",
+    "https://github.com/NeogitOrg/neogit",
     { src = "https://github.com/rose-pine/neovim", name = "rose-pine" },
     "https://github.com/neovim/nvim-lspconfig",
     "https://github.com/mason-org/mason.nvim",
@@ -420,6 +422,25 @@ map("n", "<Leader>,", function()
     }))
 end)
 
+local fzf_lua = require("fzf-lua")
+fzf_lua.setup({
+    fzf_colors = true,
+    winopts = {
+        border = "solid",
+        preview = { border = "solid" },
+    },
+})
+map("n", "<Leader>f", fzf_lua.files)
+map("n", "<Leader>F", fzf_lua.oldfiles)
+map("n", "<Leader>b", fzf_lua.buffers)
+map("n", "<Leader>/", fzf_lua.live_grep_native)
+map("x", "<Leader>/", fzf_lua.grep_visual)
+map("n", "<Leader>H", fzf_lua.helptags)
+map("n", "<Leader>u", fzf_lua.undotree)
+map("n", "<Leader>gs", fzf_lua.git_status)
+map("n", "<Leader>gh", fzf_lua.git_hunks)
+map("n", "<Leader>gl", fzf_lua.git_commits)
+
 local gitsigns = require("gitsigns")
 gitsigns.setup()
 map({"o", "x"}, "ah", "<Cmd>Gitsigns select_hunk<CR>")
@@ -452,24 +473,24 @@ map("n", "<Leader>hD", function() gitsigns.diffthis("~1") end)
 map("n", "<Leader>hq", gitsigns.setqflist)
 map("n", "<Leader>hQ", function() gitsigns.setqflist("all") end)
 
-local fzf_lua = require("fzf-lua")
-fzf_lua.setup({
-    fzf_colors = true,
-    winopts = {
-        border = "solid",
-        preview = { border = "solid" },
+local diffview = require("diffview")
+diffview.setup()
+
+local neogit = require("neogit")
+neogit.setup({
+    integrations = {
+        diffview = true,
+        fzf_lua = true,
     },
+    signs = {
+        hunk = { "", "" },
+        item = { "▾", "▸" },
+        section= { "▾", "▸" },
+    }
 })
-map("n", "<Leader>f", fzf_lua.files)
-map("n", "<Leader>F", fzf_lua.oldfiles)
-map("n", "<Leader>b", fzf_lua.buffers)
-map("n", "<Leader>/", fzf_lua.live_grep_native)
-map("x", "<Leader>/", fzf_lua.grep_visual)
-map("n", "<Leader>H", fzf_lua.helptags)
-map("n", "<Leader>u", fzf_lua.undotree)
-map("n", "<Leader>gs", fzf_lua.git_status)
-map("n", "<Leader>gh", fzf_lua.git_hunks)
-map("n", "<Leader>gl", fzf_lua.git_commits)
+map("n", "<Leader>gg", neogit.open)
+map("n", "<Leader>gc", function() neogit.open({ "commit" }) end)
+map("n", "<Leader>gp", function() neogit.open({ "push" }) end)
 
 require("rose-pine").setup({
     variant = "main",
