@@ -586,4 +586,98 @@ vim.lsp.config('lua_ls', {
     },
 })
 
--- TODO: Snippets!!!!
+local snippets = {
+    lua = {
+        fn = "function ${1:name}(${2:args})\n\t${0}\nend",
+    },
+    haskell = {
+        fn = "${1:name} :: ${2:type}\n${1:name} ${3:args} = ${0}",
+    },
+}
+
+-- Smart unexpanding snippets
+local snippet_state = {
+    ns = api.nvim_create_namespace("snippets"),
+    expanded = false,
+    deleted = nil,
+    marks = { nil, nil },
+}
+
+function snippet_state:reset(bufnr)
+    self.deleted = nil
+    if self.marks[1] then api.nvim_buf_del_extmark(bufnr, self.ns, self.marks[1]) end
+    if self.marks[2] then api.nvim_buf_del_extmark(bufnr, self.ns, self.marks[2]) end
+    self.marks = { nil, nil }
+end
+
+function snippet_state:is_saved()
+    return self.deleted ~= nil
+end
+
+function snippet_state:save(bufnr, deleted, row1, col1, row2, col2)
+    if self:is_saved() then self:reset(bufnr) end
+
+    self.marks[1] = api.nvim_buf_set_extmark(bufnr, self.ns, row1, col1, { right_gravity = false })
+    self.marks[2] = api.nvim_buf_set_extmark(bufnr, self.ns, row2, col2, { right_gravity = true })
+    self.deleted = deleted
+end
+
+function snippet_state:restore(bufnr)
+    if not self:is_saved() then return end
+
+    local row1, col1 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[1], { details = false }))
+    local row2, col2 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[2], { details = false }))
+    api.nvim_buf_set_text(bufnr, row1, col1, row2, col2, { self.deleted })
+
+    self:reset(bufnr)
+end
+
+local function unexpand_snippet()
+    if snippet_state:is_saved() then
+        vim.snippet.stop()
+        snippet_state:restore(0)
+        api.nvim_feedkeys(vim.keycode("<Esc>a"), "n", false)
+        return true
+    else
+        return false
+    end
+end
+map({ "i", "s" }, "<C-e>", unexpand_snippet)
+map({ "i", "s" }, "<BS>", function()
+    if not (snippet_state.expanded and unexpand_snippet()) then
+        api.nvim_feedkeys(vim.keycode(" <BS>"), "n", true)
+    end
+end)
+map({ "i", "s" }, "<Esc>", function()
+    if vim.snippet.active() then vim.snippet.stop() end
+
+    api.nvim_feedkeys(vim.keycode("<Esc>"), "n", false)
+end)
+
+-- Auto-expand snippets
+local last_col = nil
+api.nvim_create_autocmd("TextChangedI", {
+    callback = function(ev)
+        local ft_snippets = snippets[vim.bo[ev.buf].filetype]
+        if not ft_snippets then return end
+
+        local row, col = unpack(api.nvim_win_get_cursor(0))
+        -- Only expand when adding characters, not removing
+        local added_char = last_col and col <= last_col
+        last_col = col
+        if added_char then return end
+
+        row = row - 1
+        local line = api.nvim_get_current_line()
+        local word = line:sub(1, col):match("%a+$")
+
+        if word and ft_snippets[word] then
+            snippet_state:save(ev.buf, word, row, col - #word, row, col)
+            api.nvim_buf_set_text(ev.buf, row, col - #word, row, col, {})
+            vim.snippet.expand(ft_snippets[word])
+            snippet_state.expanded = true
+        else
+            snippet_state.expanded = false
+        end
+    end,
+})
