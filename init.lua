@@ -339,7 +339,6 @@ api.nvim_create_autocmd("FileType", {
 local sel = require("nvim-treesitter-textobjects.select")
 local swap = require("nvim-treesitter-textobjects.swap")
 local move = require("nvim-treesitter-textobjects.move")
--- TODO: Add lhs and rhs text objects
 map({ "x", "o" }, "af", function() sel.select_textobject("@function.outer", "textobjects") end)
 map({ "x", "o" }, "if", function() sel.select_textobject("@function.inner", "textobjects") end)
 map({ "x", "o" }, "ac", function() sel.select_textobject("@class.outer", "textobjects") end)
@@ -349,6 +348,8 @@ map({ "x", "o" }, "ia", function() sel.select_textobject("@parameter.inner", "te
 map({ "x", "o" }, "ai", function() sel.select_textobject("@conditional.outer", "textobjects") end)
 map({ "x", "o" }, "ii", function() sel.select_textobject("@conditional.inner", "textobjects") end)
 map({ "x", "o" }, "gb", function() sel.select_textobject("@comment.outer", "textobjects") end)
+map({ "x", "o" }, "al", function() sel.select_textobject("@assignment.lhs", "textobjects") end)
+map({ "x", "o" }, "ar", function() sel.select_textobject("@assignment.rhs", "textobjects") end)
 map("o", "ae", "<Cmd>keepjumps normal! mzggVG<CR><Cmd>keepjumps silent! normal! `zzz<CR>", { silent = true })
 map("x", "ae", ":<C-u>keepjumps normal! mzggVG<CR>", { silent = true })
 map("n", "<Leader>sf", function() swap.swap_next("@function.outer") end)
