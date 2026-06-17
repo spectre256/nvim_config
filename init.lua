@@ -681,6 +681,14 @@ map({ "i", "s" }, "<BS>", function()
         api.nvim_feedkeys(vim.keycode(" <BS>"), "n", true)
     end
 end)
+map({ "i", "s" }, "<Tab>", function()
+    if vim.snippet.active({ direction = 1 }) then
+        snippet_state.expanded = false
+        vim.snippet.jump(1)
+    else
+        api.nvim_feedkeys(vim.keycode("<Tab>"), "n", false)
+    end
+end)
 map({ "i", "s" }, "<Esc>", function()
     if vim.snippet.active() then vim.snippet.stop() end
 
@@ -688,7 +696,7 @@ map({ "i", "s" }, "<Esc>", function()
 end)
 
 -- Auto-expand snippets
-local last_col = nil
+local last_row, last_col = 1, 0
 api.nvim_create_autocmd("TextChangedI", {
     callback = function(ev)
         local ft_snippets = snippets[vim.bo[ev.buf].filetype]
@@ -696,9 +704,9 @@ api.nvim_create_autocmd("TextChangedI", {
 
         local row, col = unpack(api.nvim_win_get_cursor(0))
         -- Only expand when adding characters, not removing
-        local added_char = last_col and col <= last_col
-        last_col = col
-        if added_char then return end
+        local added_char = row == last_row and col > last_col
+        last_row, last_col = row, col
+        if not added_char then return end
 
         row = row - 1
         local line = api.nvim_get_current_line()
