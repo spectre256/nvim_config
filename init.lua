@@ -201,6 +201,13 @@ api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave" }, {
     end,
 })
 
+-- Command buffer settings
+api.nvim_create_autocmd("CmdwinEnter", {
+    callback = function(ev)
+        map("n", "<Esc>", "<C-w>c", { buffer = ev.buf })
+    end,
+})
+
 -- TODO: Writing mode settings
 api.nvim_create_autocmd("FileType", {
     pattern = { "markdown", "text", "typst", "tex", "plaintex", "help", "man" },
@@ -278,6 +285,9 @@ map({ "n", "x", "o" }, "H", "^")
 map({ "n", "x", "o" }, "M", "gm")
 map({ "n", "x", "o" }, "L", "$")
 map("n", "U", "<C-r>")
+map("n", ":", "q:i")
+map("o", "{", "V{")
+map("o", "}", "V}")
 map("n", "<Leader>w", "<Cmd>silent w!<CR>")
 map("n", "<Leader>q", "<Cmd>silent q!<CR>")
 map("n", "<Leader>x", "<Cmd>silent x!<CR>")
