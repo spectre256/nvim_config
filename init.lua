@@ -210,6 +210,13 @@ api.nvim_create_autocmd("CmdwinEnter", {
     end,
 })
 
+api.nvim_create_autocmd("FileType", {
+    pattern = "help",
+    callback = function(ev)
+        map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
+    end,
+})
+
 -- TODO: Writing mode settings
 api.nvim_create_autocmd("FileType", {
     pattern = { "markdown", "text", "typst", "tex", "plaintex", "help", "man" },
