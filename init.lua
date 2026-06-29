@@ -661,6 +661,7 @@ function snippet_state:restore(bufnr)
     local row1, col1 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[1], { details = false }))
     local row2, col2 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[2], { details = false }))
     api.nvim_buf_set_text(bufnr, row1, col1, row2, col2, { self.deleted })
+    api.nvim_win_set_cursor(0, { row1 + 1, col1 + #self.deleted })
 
     self:reset(bufnr)
 end
