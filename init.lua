@@ -259,9 +259,10 @@ opt.updatetime = 500
 
 -- Don't show messages for anything below an error
 local notify = vim.notify
+local lev = vim.log.levels
 ---@diagnostic disable-next-line: duplicate-set-field
 vim.notify = function(msg, level, opts)
-    if level < vim.log.levels.ERROR then return end
+    if (level or lev.INFO) < lev.ERROR then return end
 
     notify(msg, level, opts)
 end
