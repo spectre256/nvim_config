@@ -204,7 +204,9 @@ api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave" }, {
 -- Command buffer settings
 api.nvim_create_autocmd("CmdwinEnter", {
     callback = function(ev)
-        map("n", "<Esc>", "<C-w>c", { buffer = ev.buf })
+        local opts = { buf = ev.buf }
+        map("n", "<Esc>", "<C-w>c", opts)
+        map("n", ":", ":", opts)
     end,
 })
 
@@ -235,7 +237,7 @@ api.nvim_create_autocmd("TermOpen", {
         vim.opt_local.statuscolumn = ""
         vim.cmd.startinsert()
 
-        local opts = { buffer = ev.buf }
+        local opts = { buf = ev.buf }
         map("t", "<Esc>", "<C-\\><C-n>", opts)
         map("t", "<C-w>", "<C-\\><C-n><C-w>", opts)
         map("t", "<C-h>", "<C-\\><C-n><C-w>h", opts)
@@ -286,6 +288,7 @@ map({ "n", "x", "o" }, "M", "gm")
 map({ "n", "x", "o" }, "L", "$")
 map("n", "U", "<C-r>")
 map("n", ":", "q:i")
+map("n", "q:", ":")
 map("o", "{", "V{")
 map("o", "}", "V}")
 map("n", "<Leader>w", "<Cmd>silent w!<CR>")
@@ -338,7 +341,7 @@ vim.pack.add({
     "https://github.com/mason-org/mason.nvim",
 })
 
-require('vim._core.ui2').enable()
+require("vim._core.ui2").enable()
 
 -- Autostart treesitter
 api.nvim_create_autocmd("FileType", {
@@ -570,7 +573,7 @@ api.nvim_create_autocmd("LspAttach", {
     callback = function(ev)
         -- vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
 
-        local buf_opts = { buffer = ev.buf }
+        local buf_opts = { buf = ev.buf }
         local diagnostic_jump = repeatable_move.make_repeatable_move(function(opts)
             vim.diagnostic.jump({ count = opts.forward and 1 or -1 })
         end)
@@ -633,6 +636,7 @@ vim.lsp.config("lua_ls", {
     },
 })
 
+-- TODO: Add snippets
 local snippets = {
     lua = {
         fn = "function ${1:name}(${2:args})\n\t${0}\nend",
