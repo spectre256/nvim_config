@@ -504,6 +504,8 @@ require("rose-pine").setup({
         ["@function.builtin"] = { bold = true },
         ["@variable.builtin"] = { bold = true },
         ["@keyword"] = { italic = true },
+        ["@keyword.import"] = { italic = true },
+        ["@keyword.repeat"] = { italic = true },
         ["@keyword.return"] = { italic = true },
         ["@keyword.exception"] = { italic = true },
         ["@keyword.conditional"] = { italic = true },
