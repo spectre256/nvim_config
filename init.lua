@@ -139,17 +139,17 @@ opt.showtabline = 2
 opt.tabline = "%!v:lua.render_tabline()"
 
 local function render_tab(i, tab)
-    local win = vim.api.nvim_tabpage_get_win(tab)
-    local buf = vim.api.nvim_win_get_buf(win)
+    local win = api.nvim_tabpage_get_win(tab)
+    local buf = api.nvim_win_get_buf(win)
 
-    local path = vim.api.nvim_buf_get_name(buf)
+    local path = api.nvim_buf_get_name(buf)
     local name = path ~= "" and vim.fn.fnamemodify(path, ":t") or "[No Name]"
     local max_name_len = 20
     name = #name > max_name_len and name:sub(1, max_name_len - 1) .. "…" or name
 
-    local modified = vim.api.nvim_get_option_value("modified", { buf = buf })
-    local readonly = vim.api.nvim_get_option_value("readonly", { buf = buf })
-    local current = tab == vim.api.nvim_get_current_tabpage()
+    local modified = api.nvim_get_option_value("modified", { buf = buf })
+    local readonly = api.nvim_get_option_value("readonly", { buf = buf })
+    local current = tab == api.nvim_get_current_tabpage()
 
     local hl = current and "%#TabLineSel#" or "%#TabLine#"
     local symbol = ""
@@ -172,7 +172,7 @@ end
 
 function _G.render_tabline()
     local line = ""
-    local tabs = vim.api.nvim_list_tabpages()
+    local tabs = api.nvim_list_tabpages()
     local last_current = false
 
     for i, tab in ipairs(tabs) do
@@ -588,24 +588,24 @@ for _, config in ipairs(vim.lsp.get_configs()) do
     end
 end
 
-vim.lsp.config('lua_ls', {
+vim.lsp.config("lua_ls", {
     on_init = function(client)
         if client.workspace_folders then
             local path = client.workspace_folders[1].name
             if
-                path ~= vim.fn.stdpath('config')
-                and (vim.uv.fs_stat(path .. '/.luarc.json') or vim.uv.fs_stat(path .. '/.luarc.jsonc'))
+                path ~= vim.fn.stdpath("config")
+                and (vim.uv.fs_stat(path .. "/.luarc.json") or vim.uv.fs_stat(path .. "/.luarc.jsonc"))
             then
                 return
             end
         end
 
-        client.config.settings.Lua = vim.tbl_deep_extend('force', client.config.settings.Lua, {
+        client.config.settings.Lua = vim.tbl_deep_extend("force", client.config.settings.Lua, {
             runtime = {
-                version = 'LuaJIT',
+                version = "LuaJIT",
                 path = {
-                    'lua/?.lua',
-                    'lua/?/init.lua',
+                    "lua/?.lua",
+                    "lua/?/init.lua",
                 },
             },
             workspace = {
