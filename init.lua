@@ -138,9 +138,34 @@ end
 opt.showtabline = 2
 opt.tabline = "%!v:lua.render_tabline()"
 
+local function is_floating(win)
+    return api.nvim_win_get_config(win).relative ~= "" or vim.fn.getcmdwintype() ~= ""
+end
+
+-- Keep track of last non-floating-window buffer per tab
+local tab_last_buf = {}
+api.nvim_create_autocmd("BufEnter", {
+    callback = function()
+        local win = api.nvim_get_current_win()
+        if not is_floating(win) then
+            local tab = api.nvim_get_current_tabpage()
+            local buf = api.nvim_win_get_buf(win)
+            tab_last_buf[tab] = buf
+        end
+    end,
+})
+
 local function render_tab(i, tab)
     local win = api.nvim_tabpage_get_win(tab)
     local buf = api.nvim_win_get_buf(win)
+
+    -- Don't change tabline for floating windows
+    if is_floating(win) then
+        local last_buf = tab_last_buf[tab]
+        if api.nvim_buf_is_valid(last_buf) then
+            buf = last_buf
+        end
+    end
 
     local path = api.nvim_buf_get_name(buf)
     local name = path ~= "" and vim.fn.fnamemodify(path, ":t") or "[No Name]"
@@ -164,7 +189,7 @@ local function render_tab(i, tab)
         "%" .. i .. "T ",
         name .. "%<",
         symbol,
-        " %" .. i .. "X" .. hl .. "⮾ %X",
+        " %" .. i .. "X" .. hl .. "× %X",
     })
 
     return str, current
