@@ -1,4 +1,5 @@
 local opt = vim.opt
+local opt_local = vim.opt_local
 local api = vim.api
 local map = vim.keymap.set
 
@@ -14,8 +15,10 @@ opt.sidescrolloff = 8
 opt.wrap = false
 opt.cursorline = true
 opt.cmdheight = 0
+opt.cmdwinheight = 1
 opt.pumheight = 12
 opt.showmode = false
+opt.shortmess = "aoOstTWAcCqFS"
 opt.list = true
 opt.listchars = {
     tab = "⇥ ",
@@ -44,7 +47,6 @@ opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 opt.foldenable = false
 opt.foldcolumn = "auto"
 opt.foldtext = "v:lua.render_foldtext()"
--- TODO: Weirdness happens when opening cmd second time? puts me into cmd buffer?
 
 local function get_highlighted_row(bufnr, row, trim_space)
     local line = api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1]
@@ -219,10 +221,10 @@ end
 -- Highlight all while searching, clear on exit
 opt.incsearch = true
 opt.hlsearch = false
-api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave" }, {
+api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave", "CmdwinEnter", "CmdwinLeave" }, {
     pattern = { "/", "\\?" },
     callback = function(ev)
-        opt.hlsearch = ev.event == "CmdlineEnter"
+        opt.hlsearch = ev.event == "CmdlineEnter" or ev.event == "CmdwinEnter"
     end,
 })
 
@@ -232,6 +234,14 @@ api.nvim_create_autocmd("CmdwinEnter", {
         local opts = { buf = ev.buf }
         map("n", "<Esc>", "<C-w>c", opts)
         map("n", ":", ":", opts)
+        map("i", "<C-Space>", "<Tab>", opts) -- FIXME: Doesn't do anything?
+
+        opt_local.number = false
+        opt_local.relativenumber = false
+        opt_local.signcolumn = "no"
+        opt_local.statuscolumn = ""
+        opt_local.foldcolumn = "0"
+        opt_local.statuscolumn = " "
     end,
 })
 
@@ -556,6 +566,7 @@ require("rose-pine").setup({
         ["@keyword.exception"] = { italic = true },
         ["@keyword.conditional"] = { italic = true },
         ["@keyword.conditional.ternary"] = { italic = true },
+        ["@markup.italic"] = { italic = true },
         CurSearch = { fg = "base", bg = "leaf", inherit = false },
         Search = { fg = "text", bg = "leaf", blend = 20, inherit = false },
         MatchParen = { link = "Search" },
