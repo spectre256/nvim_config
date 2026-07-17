@@ -503,9 +503,9 @@ map("n", "<Leader>r",  range.operator, { noremap = true })
 map("n", "<Leader>rr", range.word, { noremap = true })
 
 require("oil").setup()
-map("n", "<Leader>.", "<Cmd>e .<CR>")
+map("n", "<Leader>.", "<Cmd>edit .<CR>")
 map("n", "<Leader>,", function()
-    vim.cmd.e(vim.fs.root(0, {
+    vim.cmd.edit(vim.fs.root(0, {
         {
             ".git",
             "flake.nix",
@@ -536,6 +536,20 @@ map("n", "<Leader>u", fzf_lua.undotree)
 map("n", "<Leader>gs", fzf_lua.git_status)
 map("n", "<Leader>gh", fzf_lua.git_hunks)
 map("n", "<Leader>gl", fzf_lua.git_commits)
+map("n", "<Leader>cd", function()
+    fzf_lua.fzf_exec("fd --type d --hidden --exclude .git", {
+        actions = {
+            ["default"] = function(selected, opts)
+                local dir = selected[1] or opts.last_query
+                if not dir or dir == "" then return end
+
+                vim.fn.mkdir(dir, "p")
+                vim.cmd.cd(dir)
+                vim.cmd.edit(".")
+            end,
+        },
+    })
+end)
 
 local gitsigns = require("gitsigns")
 gitsigns.setup()
