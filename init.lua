@@ -233,7 +233,7 @@ api.nvim_create_autocmd("CmdwinEnter", {
         local opts = { buf = ev.buf }
         map("n", "<Esc>", "<C-w>c", opts)
         map("n", ":", ":", opts)
-        map("i", "<C-Space>", "<Tab>", opts) -- FIXME: Doesn't do anything?
+        map("i", "<C-Space>", "<Tab>", { remap =  true, buf = ev.buf })
 
         opt_local.number = false
         opt_local.relativenumber = false
@@ -410,9 +410,16 @@ map("n", "<C-S-k>", "<Cmd>leftabove split<CR>")
 map("n", "<C-S-l>", "<Cmd>rightbelow vsplit<CR>")
 map("n", "<C-b><C-b>", "<C-^>")
 map("n", "<C-b>n", "<Cmd>new<CR>")
-map("n", "<C-b>c", "<Cmd>bdelete<CR>") -- TODO: Smarter handling here?
+map("n", "<C-b>c", "<Cmd>bdelete<CR>")
 map("n", "<C-b>w", "<Cmd>bwipeout<CR>")
--- TODO: <C-b>o mapping?
+map("n", "<C-b>o", function()
+    local current = api.nvim_get_current_buf()
+    for _, buf in ipairs(api.nvim_list_bufs()) do
+        if buf ~= current and vim.bo[buf].buflisted then
+            pcall(api.nvim_buf_delete, buf, {})
+        end
+    end
+end)
 map("i", "<C-Space>", "<C-x><C-o>")
 
 vim.pack.add({
