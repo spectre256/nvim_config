@@ -107,7 +107,6 @@ function _G.render_foldtext()
 end
 
 opt.signcolumn = "yes"
-opt.statuscolumn = "%C%s%=%{v:virtnum != 0 ? '' : v:relnum == 0 ? v:lnum : v:relnum} " -- Fix left aligned number
 opt.laststatus = 3
 opt.statusline = table.concat({
     "%{%v:lua.render_mode()%}",
@@ -239,9 +238,7 @@ api.nvim_create_autocmd("CmdwinEnter", {
         opt_local.number = false
         opt_local.relativenumber = false
         opt_local.signcolumn = "no"
-        opt_local.statuscolumn = ""
         opt_local.foldcolumn = "0"
-        opt_local.statuscolumn = " "
     end,
 })
 
@@ -252,22 +249,63 @@ api.nvim_create_autocmd("FileType", {
     end,
 })
 
--- TODO: Writing mode settings
+local writing_bufs = {}
+local writing_statuscolumn = "%{repeat(' ', (winwidth(0) - &textwidth) / 2)}"
 api.nvim_create_autocmd("FileType", {
     pattern = { "markdown", "text", "typst", "tex", "plaintex", "help", "man" },
+    callback = function(ev)
+        writing_bufs[ev.buf] = true
+
+        opt_local.number = false
+        opt_local.relativenumber = false
+        opt_local.signcolumn = "no"
+        opt_local.foldcolumn = "0"
+        opt_local.statuscolumn = writing_statuscolumn
+        opt_local.textwidth = 80
+        opt_local.cursorline = false
+        opt_local.wrap = true
+        opt_local.linebreak = true
+        opt_local.breakindent = true
+        opt_local.spell = true
+        opt_local.conceallevel = 2
+    end,
+})
+
+api.nvim_create_autocmd("BufWinEnter", {
+    callback = function(ev)
+        if vim.bo[ev.buf].filetype == "help" then -- Help buffers are weird
+            writing_bufs[ev.buf] = true
+        end
+
+        if writing_bufs[ev.buf] then
+            opt_local.statuscolumn = writing_statuscolumn
+        elseif vim.fn.getcmdwintype() ~= "" then
+            opt_local.statuscolumn = " "
+        elseif vim.bo[ev.buf].buftype == "terminal" then
+            return -- Set by TermOpen autocmd
+        else
+            opt_local.statuscolumn = "%C%s%=%{v:virtnum != 0 ? '' : v:relnum == 0 ? v:lnum : v:relnum} " -- Fix left aligned number
+        end
+    end,
+})
+
+api.nvim_create_autocmd("WinResized", {
     callback = function()
-        vim.opt_local.number = false
-        vim.opt_local.relativenumber = false
-        vim.opt_local.signcolumn = "no"
-        vim.opt_local.statuscolumn = ""
-        -- vim.opt_local.textwidth = 80
-        -- vim.opt_local.statuscolumn = "%{repeat(' ', (winwidth(0) - &textwidth) / 2)}%<" -- FIXME
-        vim.opt_local.cursorline = false
-        vim.opt_local.wrap = true
-        vim.opt_local.linebreak = true
-        vim.opt_local.breakindent = true
-        vim.opt_local.spell = true
-        vim.opt_local.conceallevel = 2
+        local wins = vim.v.event.windows or {}
+
+        for _, win in ipairs(wins) do
+            local buf = api.nvim_win_get_buf(win)
+
+            if writing_bufs[buf] then
+                vim.wo[win].statuscolumn = writing_statuscolumn
+            end
+        end
+    end,
+})
+
+api.nvim_create_autocmd("BufDelete", {
+    callback = function(ev)
+        writing_bufs[ev.buf] = nil
     end,
 })
 
@@ -294,7 +332,7 @@ api.nvim_create_autocmd("TermOpen", {
 -- Get rid of annoying process exited messages
 api.nvim_create_autocmd("TermClose", {
     callback = function(ev)
-        if vim.v.event.status == 0 and vim.bo[ev.buf].filetype ~= "fzf" then
+        if vim.v.event.status == 0 and api.nvim_buf_is_valid(ev.buf) and vim.bo[ev.buf].filetype ~= "fzf" then
             api.nvim_buf_delete(ev.buf, { force = true })
         end
     end,
