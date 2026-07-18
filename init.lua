@@ -359,7 +359,7 @@ end
 local paste = vim.paste
 ---@diagnostic disable-next-line: duplicate-set-field
 vim.paste = function(lines, phase)
-    for i,line in ipairs(lines) do
+    for i, line in ipairs(lines) do
         -- Scrub ANSI color codes
         lines[i] = line:gsub("\27%[[0-9;mK]+", "")
         -- Scrub Windows CR characters
@@ -457,6 +457,7 @@ map({ "x", "o" }, "af", function() sel.select_textobject("@function.outer", "tex
 map({ "x", "o" }, "if", function() sel.select_textobject("@function.inner", "textobjects") end)
 map({ "x", "o" }, "ac", function() sel.select_textobject("@class.outer", "textobjects") end)
 map({ "x", "o" }, "ic", function() sel.select_textobject("@class.inner", "textobjects") end)
+-- TODO: Delete trailing whitespace?
 map({ "x", "o" }, "aa", function() sel.select_textobject("@parameter.outer", "textobjects") end)
 map({ "x", "o" }, "ia", function() sel.select_textobject("@parameter.inner", "textobjects") end)
 map({ "x", "o" }, "ai", function() sel.select_textobject("@conditional.outer", "textobjects") end)
@@ -501,7 +502,10 @@ require("nvim-surround").setup()
 map("n", "yH", "<Plug>(nvim-surround-normal)^")
 map("n", "yL", "<Plug>(nvim-surround-normal)$")
 
-require("nvim-autopairs").setup()
+local npairs = require("nvim-autopairs")
+npairs.setup({
+    map_bs = false, -- Integrates with snippet unexpansion
+})
 require("Comment").setup()
 
 local substitute = require("substitute")
@@ -751,6 +755,7 @@ vim.lsp.config("lua_ls", {
 })
 
 -- TODO: Add snippets
+-- TODO: General purpose "expand snippet with" keymap
 local snippets = {
     lua = {
         fn = "function ${1:name}(${2:args})\n\t${0}\nend",
@@ -766,6 +771,8 @@ local snippet_state = {
     expanded = false,
     deleted = nil,
     marks = { nil, nil },
+    last_row = 1,
+    last_col = 0,
 }
 
 function snippet_state:reset(bufnr)
@@ -808,10 +815,16 @@ local function unexpand_snippet()
         return false
     end
 end
-map({ "i", "s" }, "<C-e>", unexpand_snippet)
+map({ "i", "s" }, "<C-e>", function()
+    if not unexpand_snippet() then
+        api.nvim_feedkeys(vim.keycode("<C-e>"), "n", false)
+    end
+end)
+-- TODO: I seem to remember an intermittent bug on unexpansion, worth a check
 map({ "i", "s" }, "<BS>", function()
     if not (snippet_state.expanded and unexpand_snippet()) then
-        api.nvim_feedkeys(vim.keycode(" <BS>"), "n", true)
+        api.nvim_feedkeys(npairs.autopairs_bs(), "n", false)
+        snippet_state.expanded = false
     end
 end)
 map({ "i", "s" }, "<Tab>", function()
@@ -829,7 +842,6 @@ map({ "i", "s" }, "<Esc>", function()
 end)
 
 -- Auto-expand snippets
-local last_row, last_col = 1, 0
 api.nvim_create_autocmd("TextChangedI", {
     callback = function(ev)
         local ft_snippets = snippets[vim.bo[ev.buf].filetype]
@@ -837,21 +849,25 @@ api.nvim_create_autocmd("TextChangedI", {
 
         local row, col = unpack(api.nvim_win_get_cursor(0))
         -- Only expand when adding characters, not removing
-        local added_char = row == last_row and col > last_col
-        last_row, last_col = row, col
+        local added_char = row == snippet_state.last_row and col > snippet_state.last_col
+        snippet_state.last_row, snippet_state.last_col = row, col
         if not added_char then return end
 
         row = row - 1
         local line = api.nvim_get_current_line()
-        local word = line:sub(1, col):match("%a+$")
 
-        if word and ft_snippets[word] then
-            snippet_state:save(ev.buf, word, row, col - #word, row, col)
-            api.nvim_buf_set_text(ev.buf, row, col - #word, row, col, {})
-            vim.snippet.expand(ft_snippets[word])
-            snippet_state.expanded = true
-        else
-            snippet_state.expanded = false
+        for i = 0, col do
+            local word = line:sub(i + 1, col)
+
+            if word and ft_snippets[word] then
+                snippet_state:save(ev.buf, word, row, i, row, col)
+                api.nvim_buf_set_text(ev.buf, row, i, row, col, {})
+                vim.snippet.expand(ft_snippets[word])
+                snippet_state.expanded = true
+                return
+            end
         end
+
+        snippet_state.expanded = false
     end,
 })
