@@ -758,7 +758,37 @@ vim.lsp.config("lua_ls", {
 -- TODO: General purpose "expand snippet with" keymap
 local snippets = {
     lua = {
-        fn = "function ${1:name}(${2:args})\n\t${0}\nend",
+        lo = "local ",
+        fu = "function",
+        ret = "return ",
+        req = "require(\"${0}\")",
+        ["function("] = "function(${1})\n\t${0}\nend",
+        ["function "] = "function ${1:name}(${2:args})\n\t${0}\nend", -- TODO: Fix integration with autopairs
+        fo = "for ",
+        ["for i"] = "for ${1:i} = ${2:1}, ${3:stop} do\n\t${0}\nend",
+        ["for k"] = "for ${1:k}, ${2:v} in pairs(${3:table}) do\n\t${0}\nend",
+        ["for _"] = "for ${1:_}, ${2:v} in ipairs(${3:table}) do\n\t${0}\nend",
+        ["if"] = "if ${1} then\n\t${2}\n${3:end}",
+        el = "else",
+        ["else "] = "else\n\t${0}\nend",
+        elsei = "elseif ${1} then\n\t${2}\n${3:end}",
+    },
+    python = {
+
+    },
+    zig = {
+        co = "const ",
+        va = "var ",
+        imp = "@import(\"${1:std}\");",
+        ["const std"] = "const std = @import(\"std\");\n",
+        ["const Se"] = "const Self = @This();",
+        pu = "pub ",
+        ret = "return ${0};",
+        ["if"] = "if (${1}) {\n\t${2}\n}${0}",
+        el = "else",
+        ["else "] = "else {\n\t${1}\n}${0}",
+        elsei = "else if (${1}) {\n\t${2}\n}${0}",
+        sw = "switch (${1:arg}) {\n\t${2}\n}${0}",
     },
     haskell = {
         fn = "${1:name} :: ${2:type}\n${1:name} ${3:args} = ${0}",
