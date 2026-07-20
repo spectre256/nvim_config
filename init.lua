@@ -906,7 +906,16 @@ api.nvim_create_autocmd("TextChangedI", {
                 snippets.state:save(ev.buf, match, row, i, row, col)
                 api.nvim_buf_set_text(ev.buf, row, i, row, col, {})
 
-                local rhs = type(s.rhs) == "function" and s.rhs(captures) or s.rhs
+                local rhs
+                if type(s.rhs) == "function" then
+                    rhs = s.rhs(captures)
+                else
+                    rhs = s.rhs:gsub("%$(%d+)", function(num_str)
+                        local cap_i = tonumber(num_str)
+                        return captures[cap_i + 1]
+                    end)
+                end
+
                 vim.snippet.expand(rhs)
                 snippets.state.expanded = true
                 -- Return immediately to avoid unsetting expand
@@ -936,9 +945,7 @@ snip("lua", "lo", "local ", lua_kw_opts)
 snip("lua", [[\<fu]], "function")
 snip("lua", "function ", "function ${1:name}(${2:args})\n\t${0}\nend")
 snip("lua", "function(", "function(${1})\n\t${0}\nend") -- TODO: Fix integration with autopairs
-snip("lua", [[\vlocal ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], function(captures)
-    return string.format("local %s = ", captures[2]) -- TODO: Capture format string with $
-end)
+snip("lua", [[\vlocal ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], "$0= ")
 snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "ret", "return ", lua_kw_opts)
 snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "br", "break", lua_kw_opts)
 snip("lua", "req", [[require("${0}")]], lua_kw_opts)
