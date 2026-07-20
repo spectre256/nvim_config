@@ -930,8 +930,11 @@ api.nvim_create_autocmd("TextChangedI", {
     end,
 })
 
--- TODO: lval, rval opts
-local lua_kw_opts = { include = {
+local lval_opts = { include = {
+    "source_file",
+    "struct_declaration",
+    "union_declaration",
+    "enum_declaration",
     "block",
     "chunk",
     "ERROR", -- Replaces chunk when parse fails
@@ -941,19 +944,43 @@ local lua_kw_opts = { include = {
     "else_statement",
     "do_statement",
 } }
-snip("lua", "lo", "local ", lua_kw_opts)
-snip("lua", [[\<fu]], "function")
+local rval_opts = { include = {
+    "assignment_declaration",
+    "assignment_statement",
+    "variable_declaration",
+} }
+local xval_opts = vim.tbl_deep_extend("force", lval_opts, rval_opts)
+
+snip("lua", "lo", "local ", lval_opts)
+snip("lua", "fu", "function", xval_opts)
 snip("lua", "function ", "function ${1:name}(${2:args})\n\t${0}\nend")
 snip("lua", "function(", "function(${1})\n\t${0}\nend") -- TODO: Fix integration with autopairs
 snip("lua", [[\vlocal ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], "$0= ")
-snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "ret", "return ", lua_kw_opts)
-snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "br", "break", lua_kw_opts)
-snip("lua", "req", [[require("${0}")]], lua_kw_opts)
-snip("lua", "fo", "for ", lua_kw_opts)
-snip("lua", "for i", "for ${1:i} = ${2:1}, ${3:stop} do\n\t${0}\nend", lua_kw_opts)
-snip("lua", "for k", "for ${1:k}, ${2:v} in pairs(${3:table}) do\n\t${0}\nend", lua_kw_opts)
-snip("lua", "for _", "for ${1:_}, ${2:v} in ipairs(${3:table}) do\n\t${0}\nend", lua_kw_opts)
-snip("lua", "if", "if ${1} then\n\t${2}\n${3:end}", lua_kw_opts)
-snip("lua", "el", "else", lua_kw_opts)
-snip("lua", "else ", "else\n\t${0}\nend", lua_kw_opts)
-snip("lua", "elsei", "elseif ${1} then\n\t${2}\n${3:end}", lua_kw_opts)
+snip("lua", "req", [[require("${0}")]], xval_opts)
+snip("lua", "fo", "for ", lval_opts)
+snip("lua", "for i", "for ${1:i} = ${2:1}, ${3:stop} do\n\t${0}\nend", lval_opts)
+snip("lua", "for k", "for ${1:k}, ${2:v} in pairs(${3:table}) do\n\t${0}\nend", lval_opts)
+snip("lua", "for _", "for ${1:_}, ${2:v} in ipairs(${3:table}) do\n\t${0}\nend", lval_opts)
+snip("lua", "if", "if ${1} then\n\t${2}\n${3:end}", lval_opts)
+snip("lua", "el", "else", lval_opts)
+snip("lua", "else ", "else\n\t${0}\nend", lval_opts)
+snip("lua", "elsei", "elseif ${1} then\n\t${2}\n${3:end}", lval_opts)
+
+snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "ret", "return ", lval_opts)
+snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "br", "break", lval_opts)
+
+-- TODO: Functions, structs, unions, enums, defer, errdefer
+snip("zig", "co", "const ", lval_opts)
+snip("zig", "va", "var ", lval_opts)
+snip("zig", "imp", "@import(\"${1:std}\");", rval_opts)
+snip("zig", "const std", "const std = @import(\"std\");\n", lval_opts)
+snip("zig", "const Se", "const Self = @This();", lval_opts)
+snip("zig", "pu", "pub ", lval_opts)
+snip("zig", "ret", "return ${0};", lval_opts)
+snip("zig", "if", "if (${1}) {\n\t${2}\n}${0}", lval_opts)
+snip("zig", "el", "else", lval_opts)
+snip("zig", "else ", "else {\n\t${1}\n}${0}", lval_opts)
+snip("zig", "elsei", "else if (${1}) {\n\t${2}\n}${0}", lval_opts)
+snip("zig", "sw", "switch (${1:arg}) {\n\t${2}\n}${0}", xval_opts)
+
+snip("haskell", "fn", "${1:name} :: ${2:type}\n${1:name} ${3:args} = ${0}")
