@@ -756,28 +756,18 @@ vim.lsp.config("lua_ls", {
 
 -- TODO: Add snippets
 -- TODO: General purpose "expand snippet with" keymap
-local snippets = {
-    lua = {
-        lo = "local ",
-        fu = "function",
-        ret = "return ",
-        req = "require(\"${0}\")",
-        ["function("] = "function(${1})\n\t${0}\nend",
-        ["function "] = "function ${1:name}(${2:args})\n\t${0}\nend", -- TODO: Fix integration with autopairs
-        fo = "for ",
-        ["for i"] = "for ${1:i} = ${2:1}, ${3:stop} do\n\t${0}\nend",
-        ["for k"] = "for ${1:k}, ${2:v} in pairs(${3:table}) do\n\t${0}\nend",
-        ["for _"] = "for ${1:_}, ${2:v} in ipairs(${3:table}) do\n\t${0}\nend",
-        ["if"] = "if ${1} then\n\t${2}\n${3:end}",
-        el = "else",
-        ["else "] = "else\n\t${0}\nend",
-        elsei = "elseif ${1} then\n\t${2}\n${3:end}",
-    },
-    python = {
 
 -- Smart unexpanding snippets
-_G.snippets = {
-    langs = {},
+local snippets = {
+    rules = {},
+    state = {
+        ns = api.nvim_create_namespace("snippets"),
+        expanded = false,
+        deleted = nil,
+        marks = { nil, nil },
+        last_row = 0,
+        last_col = 0,
+    },
 }
 
 local function toSet(arr)
@@ -790,11 +780,12 @@ end
 
 function snippets:add(langs, lhs, rhs, opts)
     if type(langs) ~= "table" then langs = { langs } end
+    opts = opts or {}
 
     for _, lang in ipairs(langs) do
-        if not self.langs[lang] then self.langs[lang] = {} end
+        if not self.rules[lang] then self.rules[lang] = {} end
 
-        table.insert(self.langs[lang], {
+        table.insert(self.rules[lang], {
             lang = lang,
             lhs = lhs .. "$",
             rhs = rhs,
@@ -808,27 +799,18 @@ local function snip(lang, lhs, rhs, opts)
     snippets:add(lang, lhs, rhs, opts)
 end
 
-_G.snippet_state = {
-    ns = api.nvim_create_namespace("snippets"),
-    expanded = false,
-    deleted = nil,
-    marks = { nil, nil },
-    last_row = 0,
-    last_col = 0,
-}
-
-function snippet_state:reset(bufnr)
+function snippets.state:reset(bufnr)
     self.deleted = nil
     if self.marks[1] then api.nvim_buf_del_extmark(bufnr, self.ns, self.marks[1]) end
     if self.marks[2] then api.nvim_buf_del_extmark(bufnr, self.ns, self.marks[2]) end
     self.marks = { nil, nil }
 end
 
-function snippet_state:is_saved()
+function snippets.state:is_saved()
     return self.deleted ~= nil
 end
 
-function snippet_state:save(bufnr, deleted, row1, col1, row2, col2)
+function snippets.state:save(bufnr, deleted, row1, col1, row2, col2)
     if self:is_saved() then self:reset(bufnr) end
 
     self.marks[1] = api.nvim_buf_set_extmark(bufnr, self.ns, row1, col1, { right_gravity = false })
@@ -836,7 +818,7 @@ function snippet_state:save(bufnr, deleted, row1, col1, row2, col2)
     self.deleted = deleted
 end
 
-function snippet_state:restore(bufnr)
+function snippets.state:restore(bufnr)
     if not self:is_saved() then return end
 
     local row1, col1 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[1], { details = false }))
@@ -848,9 +830,9 @@ function snippet_state:restore(bufnr)
 end
 
 local function unexpand_snippet()
-    if snippet_state:is_saved() then
+    if snippets.state:is_saved() then
         vim.snippet.stop()
-        snippet_state:restore(0)
+        snippets.state:restore(0)
         api.nvim_feedkeys(vim.keycode("<Esc>a"), "n", false)
         return true
     else
@@ -864,14 +846,14 @@ map({ "i", "s" }, "<C-e>", function()
 end)
 
 map({ "i", "s" }, "<BS>", function()
-    if not (snippet_state.expanded and unexpand_snippet()) then
+    if not (snippets.state.expanded and unexpand_snippet()) then
         api.nvim_feedkeys(npairs.autopairs_bs(), "n", false)
-        snippet_state.expanded = false
+        snippets.state.expanded = false
     end
 end)
 map({ "i", "s" }, "<Tab>", function()
     if vim.snippet.active({ direction = 1 }) then
-        snippet_state.expanded = false
+        snippets.state.expanded = false
         vim.snippet.jump(1)
     else
         api.nvim_feedkeys(vim.keycode("<Tab>"), "n", false)
@@ -886,58 +868,85 @@ end)
 -- Auto-expand snippets
 api.nvim_create_autocmd("TextChangedI", {
     callback = function(ev)
-        local ok, parser = pcall(vim.treesitter.get_parser, ev.buf)
-        if not ok or not parser then return nil end
+        do
+            local ok, parser = pcall(vim.treesitter.get_parser, ev.buf)
+            if not ok or not parser then goto skip end
 
-        local tree = parser:parse()[1]
-        if not tree then return nil end
+            local tree = parser:parse()[1]
+            if not tree then goto skip end
 
-        -- 0-indexed row and col
-        local row, col = unpack(api.nvim_win_get_cursor(0))
-        row = row - 1
+            -- 0-indexed row and col
+            local row, col = unpack(api.nvim_win_get_cursor(0))
+            row = row - 1
 
-        -- Only expand when adding characters, not removing
-        local added_char = row == snippet_state.last_row and col > snippet_state.last_col
-        snippet_state.last_row, snippet_state.last_col = row, col
-        if not added_char then return end
+            -- Only expand when adding characters, not removing
+            local added_char = row == snippets.state.last_row and col > snippets.state.last_col
+            snippets.state.last_row, snippets.state.last_col = row, col
+            if not added_char then goto skip end
 
-        -- Subtract one to get node at beginning of cursor, necessary when typing at end of line
-        local lang_snippets = snippets.langs[parser:lang()]
-        if not lang_snippets then return end
+            -- Subtract one to get node at beginning of cursor, necessary when typing at end of line
+            local lang_snippets = snippets.rules[parser:lang()]
+            if not lang_snippets then goto skip end
 
-        local line = api.nvim_get_current_line():sub(1, col)
+            local line = api.nvim_get_current_line():sub(1, col)
 
-        for _, s in pairs(lang_snippets) do
-            local captures = vim.fn.matchlist(line, s.lhs)
-            if #captures == 0 then goto continue end
+            for _, s in pairs(lang_snippets) do
+                local captures = vim.fn.matchlist(line, s.lhs)
+                if #captures == 0 then goto continue end
 
-            local match = captures[1]
-            local i = col - #match
+                local match = captures[1]
+                local i = col - #match
 
-            -- Check node type just before match to avoid polluting check with typed characters
-            local node = tree:root():named_descendant_for_range(row, i - 1, row, i - 1)
-            local node_type = node and node:type()
-            if s.include and not s.include[node_type] then goto continue end
-            if s.exclude[node_type] then goto continue end
+                -- Check node type just before match to avoid polluting check with typed characters
+                local node = tree:root():named_descendant_for_range(row, i - 1, row, i - 1)
+                local node_type = node and node:type()
+                if s.include and not s.include[node_type] then goto continue end
+                if s.exclude[node_type] then goto continue end
 
-            snippet_state:save(ev.buf, match, row, i, row, col)
-            api.nvim_buf_set_text(ev.buf, row, i, row, col, {})
+                snippets.state:save(ev.buf, match, row, i, row, col)
+                api.nvim_buf_set_text(ev.buf, row, i, row, col, {})
 
-            local rhs = type(s.rhs) == "function" and s.rhs(captures) or s.rhs
-            vim.snippet.expand(rhs)
-            snippet_state.expanded = true
-            -- Return immediately to avoid unsetting expand
-            do return end
+                local rhs = type(s.rhs) == "function" and s.rhs(captures) or s.rhs
+                vim.snippet.expand(rhs)
+                snippets.state.expanded = true
+                -- Return immediately to avoid unsetting expand
+                do return end
 
-            ::continue::
+                ::continue::
+            end
         end
 
-        snippet_state.expanded = false
+        ::skip::
+        snippets.state.expanded = false
     end,
 })
 
---TODO: Test multiple langs
-snip("lua", [[\<lo]], "local ", { include = { "block", "chunk", "function_declaration" } })
-snip("lua", [[\v<local ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], function(captures)
-    return string.format("local %s = ", captures[2])
-end, { include = { "block", "chunk", "function_declaration" } })
+-- TODO: lval, rval opts
+local lua_kw_opts = { include = {
+    "block",
+    "chunk",
+    "ERROR", -- Replaces chunk when parse fails
+    "function_declaration",
+    "function_definition",
+    "if_statement",
+    "else_statement",
+    "do_statement",
+} }
+snip("lua", "lo", "local ", lua_kw_opts)
+snip("lua", [[\<fu]], "function")
+snip("lua", "function ", "function ${1:name}(${2:args})\n\t${0}\nend")
+snip("lua", "function(", "function(${1})\n\t${0}\nend") -- TODO: Fix integration with autopairs
+snip("lua", [[\vlocal ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], function(captures)
+    return string.format("local %s = ", captures[2]) -- TODO: Capture format string with $
+end)
+snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "ret", "return ", lua_kw_opts)
+snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "br", "break", lua_kw_opts)
+snip("lua", "req", [[require("${0}")]], lua_kw_opts)
+snip("lua", "fo", "for ", lua_kw_opts)
+snip("lua", "for i", "for ${1:i} = ${2:1}, ${3:stop} do\n\t${0}\nend", lua_kw_opts)
+snip("lua", "for k", "for ${1:k}, ${2:v} in pairs(${3:table}) do\n\t${0}\nend", lua_kw_opts)
+snip("lua", "for _", "for ${1:_}, ${2:v} in ipairs(${3:table}) do\n\t${0}\nend", lua_kw_opts)
+snip("lua", "if", "if ${1} then\n\t${2}\n${3:end}", lua_kw_opts)
+snip("lua", "el", "else", lua_kw_opts)
+snip("lua", "else ", "else\n\t${0}\nend", lua_kw_opts)
+snip("lua", "elsei", "elseif ${1} then\n\t${2}\n${3:end}", lua_kw_opts)
