@@ -562,7 +562,7 @@ map("n", "<Leader>gl", fzf_lua.git_commits)
 map("n", "<Leader>cd", function()
     fzf_lua.fzf_exec("fd --type d --hidden --exclude .git", {
         actions = {
-            ["default"] = function(selected, opts)
+            default = function(selected, opts)
                 local dir = selected[1] or opts.last_query
                 if not dir or dir == "" then return end
 
@@ -775,33 +775,45 @@ local snippets = {
     },
     python = {
 
-    },
-    zig = {
-        co = "const ",
-        va = "var ",
-        imp = "@import(\"${1:std}\");",
-        ["const std"] = "const std = @import(\"std\");\n",
-        ["const Se"] = "const Self = @This();",
-        pu = "pub ",
-        ret = "return ${0};",
-        ["if"] = "if (${1}) {\n\t${2}\n}${0}",
-        el = "else",
-        ["else "] = "else {\n\t${1}\n}${0}",
-        elsei = "else if (${1}) {\n\t${2}\n}${0}",
-        sw = "switch (${1:arg}) {\n\t${2}\n}${0}",
-    },
-    haskell = {
-        fn = "${1:name} :: ${2:type}\n${1:name} ${3:args} = ${0}",
-    },
+-- Smart unexpanding snippets
+_G.snippets = {
+    langs = {},
 }
 
--- Smart unexpanding snippets
-local snippet_state = {
+local function toSet(arr)
+    local set = {}
+    for _, v in ipairs(arr) do
+        set[v] = true
+    end
+    return set
+end
+
+function snippets:add(langs, lhs, rhs, opts)
+    if type(langs) ~= "table" then langs = { langs } end
+
+    for _, lang in ipairs(langs) do
+        if not self.langs[lang] then self.langs[lang] = {} end
+
+        table.insert(self.langs[lang], {
+            lang = lang,
+            lhs = lhs .. "$",
+            rhs = rhs,
+            include = opts.include and toSet(opts.include),
+            exclude = toSet(opts.exclude or {}),
+        })
+    end
+end
+
+local function snip(lang, lhs, rhs, opts)
+    snippets:add(lang, lhs, rhs, opts)
+end
+
+_G.snippet_state = {
     ns = api.nvim_create_namespace("snippets"),
     expanded = false,
     deleted = nil,
     marks = { nil, nil },
-    last_row = 1,
+    last_row = 0,
     last_col = 0,
 }
 
@@ -850,7 +862,7 @@ map({ "i", "s" }, "<C-e>", function()
         api.nvim_feedkeys(vim.keycode("<C-e>"), "n", false)
     end
 end)
--- TODO: I seem to remember an intermittent bug on unexpansion, worth a check
+
 map({ "i", "s" }, "<BS>", function()
     if not (snippet_state.expanded and unexpand_snippet()) then
         api.nvim_feedkeys(npairs.autopairs_bs(), "n", false)
@@ -874,30 +886,58 @@ end)
 -- Auto-expand snippets
 api.nvim_create_autocmd("TextChangedI", {
     callback = function(ev)
-        local ft_snippets = snippets[vim.bo[ev.buf].filetype]
-        if not ft_snippets then return end
+        local ok, parser = pcall(vim.treesitter.get_parser, ev.buf)
+        if not ok or not parser then return nil end
 
+        local tree = parser:parse()[1]
+        if not tree then return nil end
+
+        -- 0-indexed row and col
         local row, col = unpack(api.nvim_win_get_cursor(0))
+        row = row - 1
+
         -- Only expand when adding characters, not removing
         local added_char = row == snippet_state.last_row and col > snippet_state.last_col
         snippet_state.last_row, snippet_state.last_col = row, col
         if not added_char then return end
 
-        row = row - 1
-        local line = api.nvim_get_current_line()
+        -- Subtract one to get node at beginning of cursor, necessary when typing at end of line
+        local lang_snippets = snippets.langs[parser:lang()]
+        if not lang_snippets then return end
 
-        for i = 0, col do
-            local word = line:sub(i + 1, col)
+        local line = api.nvim_get_current_line():sub(1, col)
 
-            if word and ft_snippets[word] then
-                snippet_state:save(ev.buf, word, row, i, row, col)
-                api.nvim_buf_set_text(ev.buf, row, i, row, col, {})
-                vim.snippet.expand(ft_snippets[word])
-                snippet_state.expanded = true
-                return
-            end
+        for _, s in pairs(lang_snippets) do
+            local captures = vim.fn.matchlist(line, s.lhs)
+            if #captures == 0 then goto continue end
+
+            local match = captures[1]
+            local i = col - #match
+
+            -- Check node type just before match to avoid polluting check with typed characters
+            local node = tree:root():named_descendant_for_range(row, i - 1, row, i - 1)
+            local node_type = node and node:type()
+            if s.include and not s.include[node_type] then goto continue end
+            if s.exclude[node_type] then goto continue end
+
+            snippet_state:save(ev.buf, match, row, i, row, col)
+            api.nvim_buf_set_text(ev.buf, row, i, row, col, {})
+
+            local rhs = type(s.rhs) == "function" and s.rhs(captures) or s.rhs
+            vim.snippet.expand(rhs)
+            snippet_state.expanded = true
+            -- Return immediately to avoid unsetting expand
+            do return end
+
+            ::continue::
         end
 
         snippet_state.expanded = false
     end,
 })
+
+--TODO: Test multiple langs
+snip("lua", [[\<lo]], "local ", { include = { "block", "chunk", "function_declaration" } })
+snip("lua", [[\v<local ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], function(captures)
+    return string.format("local %s = ", captures[2])
+end, { include = { "block", "chunk", "function_declaration" } })
