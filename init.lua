@@ -958,11 +958,12 @@ local rval_opts = { include = {
 } }
 local xval_opts = { include = vim.list_extend(lval_opts.include, rval_opts.include) }
 
+-- Lua
 snip("lua", "lo", "local ", lval_opts)
 snip("lua", "fu", "function", xval_opts)
 snip("lua", "function ", "function ${1:name}(${2:args})\n\t${0}\nend")
 snip("lua", "function(", "function(${1})\n\t${0}\nend") -- TODO: Fix integration with autopairs
-snip("lua", [[\vlocal ((\w|\d|_)+(,\s+(\w|\d|_)+)*) ]], "$0= ")
+snip("lua", [[\vlocal (\w+(, \w+)*) ]], "$0= ")
 snip("lua", "req", [[require("${0}")]], xval_opts)
 snip("lua", "fo", "for ", lval_opts)
 snip("lua", "for i", "for ${1:i} = ${2:1}, ${3:stop} do\n\t${0}\nend", lval_opts)
@@ -972,27 +973,47 @@ snip("lua", "if", "if ${1} then\n\t${2}\n${3:end}", lval_opts)
 snip("lua", "el", "else", lval_opts)
 snip("lua", "else ", "else\n\t${0}\nend", lval_opts)
 snip("lua", "elsei", "elseif ${1} then\n\t${2}\n${3:end}", lval_opts)
+snip("lua", "ret", "return ", lval_opts)
+snip("lua", "br", "break", lval_opts)
 
 snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "ret", "return ", lval_opts)
 snip({ "lua", "zig", "c", "cpp", "rust", "go" }, "br", "break", lval_opts)
 
 -- TODO: Functions, structs, unions, enums, defer, errdefer
+local for_opts = { include = { "ERROR", "for_statement", "for_expression" } }
+local sw_opts = { include = { "switch_expression" } }
+
+-- Zig
+-- TODO: Functions, structs, unions, enums
 snip("zig", "co", "const ", lval_opts)
 snip("zig", "va", "var ", lval_opts)
+snip("zig", [[\v(const|var)? ?\w+(: *\S*[^,])? ]], "$0= ${0};", lval_opts)
 snip("zig", "imp", "@import(\"${1:std}\");", rval_opts)
-snip("zig", "const std", "const std = @import(\"std\");\n", lval_opts)
-snip("zig", "const Se", "const Self = @This();", lval_opts)
+snip("zig", "const std", "const std = @import(\"std\");\n\n", lval_opts)
+snip("zig", "const Se", "const Self = @This();\n\n", lval_opts)
 snip("zig", "pu", "pub ", lval_opts)
 snip("zig", "ret", "return ${0};", lval_opts)
-snip("zig", "if", "if (${1}) {\n\t${2}\n}${0}", lval_opts)
+snip("zig", "br", "break ${0};", lval_opts)
+snip("zig", "cn", "continue ${0};", lval_opts)
+snip("zig", "tr", "try ", lval_opts)
+snip("zig", "ca", "catch ", lval_opts)
+snip("zig", "catch |", "$0${1:err}| {\n\t${0}\n}", lval_opts)
+snip("zig", "def", "defer ", lval_opts)
+snip("zig", "err", "errdefer ", lval_opts)
+snip("zig", "if", "if (${1})", lval_opts)
+snip("zig", "if ([^()]) ", "$0{\n\t${2}\n}${0}", lval_opts)
+snip("zig", "if (.*)|", "$0{\n\t${2}\n}${0}", lval_opts)
 snip("zig", "el", "else", lval_opts)
 snip("zig", "else ", "else {\n\t${1}\n}${0}", lval_opts)
 snip("zig", "elsei", "else if (${1}) {\n\t${2}\n}${0}", lval_opts)
-snip("zig", "sw", "switch (${1:arg}) {\n\t${2}\n}${0}", xval_opts)
+snip("zig", "sw", "switch (${1}) {\n\t${0}\n}", xval_opts)
+snip("zig", "el", "else => ${1},${0}", sw_opts)
+snip("zig", "_", "_ => ${1},${0}", sw_opts)
+snip("zig", [[\v\w+(, \w+)* ]], "$0=> ${0},", sw_opts)
 snip("zig", "fo", "for (${0})", xval_opts)
 snip("zig", [[\v(\d+)\.]], "$0.", for_opts)
 snip("zig", [[\v\S* \.]], "$0. ", for_opts)
-snip("zig", [[\vfor \(([^,]+)((,\s*[^,]+)*)\) ]], function(captures)
+snip("zig", [[\vfor \(([^,]+)((, [^,]+)*)\) ]], function(captures)
     local args = { captures[2], unpack(vim.fn.split(captures[3], ",")) }
     local index_count = 0
     local indices = { "i", "j", "k" }
@@ -1010,5 +1031,9 @@ snip("zig", [[\vfor \(([^,]+)((,\s*[^,]+)*)\) ]], function(captures)
 
     return string.format("%s|%s| {\n\t${0}\n}", captures[1], arg_str)
 end)
+snip("zig", "wh", "while (${1:true})", xval_opts)
+snip("zig", "while ([^()]*) ", "$0{\n\t${0}\n}", xval_opts)
+snip("zig", "\\(while (.*)\\):", "$1 : (${1:i += 1}) {\n\t${0}\n}", xval_opts)
+snip("zig", "\\(while (.*)\\)|", "$1 |${1:_}| {\n\t${0}\n}", xval_opts)
 
 snip("haskell", "fn", "${1:name} :: ${2:type}\n${1:name} ${3:args} = ${0}")
