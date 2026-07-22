@@ -931,10 +931,7 @@ api.nvim_create_autocmd("TextChangedI", {
 })
 
 local lval_opts = { include = {
-    "source_file",
-    "struct_declaration",
-    "union_declaration",
-    "enum_declaration",
+    -- Lua
     "block",
     "chunk",
     "ERROR", -- Replaces chunk when parse fails
@@ -942,14 +939,24 @@ local lval_opts = { include = {
     "function_definition",
     "if_statement",
     "else_statement",
+    "while_statement",
     "do_statement",
+    -- Zig
+    "source_file",
+    "struct_declaration",
+    "union_declaration",
+    "enum_declaration",
+    -- Typescript
+    "program",
+    "statement_block",
+    "class_body",
 } }
 local rval_opts = { include = {
     "assignment_declaration",
     "assignment_statement",
     "variable_declaration",
 } }
-local xval_opts = vim.tbl_deep_extend("force", lval_opts, rval_opts)
+local xval_opts = { include = vim.list_extend(lval_opts.include, rval_opts.include) }
 
 snip("lua", "lo", "local ", lval_opts)
 snip("lua", "fu", "function", xval_opts)
@@ -982,5 +989,26 @@ snip("zig", "el", "else", lval_opts)
 snip("zig", "else ", "else {\n\t${1}\n}${0}", lval_opts)
 snip("zig", "elsei", "else if (${1}) {\n\t${2}\n}${0}", lval_opts)
 snip("zig", "sw", "switch (${1:arg}) {\n\t${2}\n}${0}", xval_opts)
+snip("zig", "fo", "for (${0})", xval_opts)
+snip("zig", [[\v(\d+)\.]], "$0.", for_opts)
+snip("zig", [[\v\S* \.]], "$0. ", for_opts)
+snip("zig", [[\vfor \(([^,]+)((,\s*[^,]+)*)\) ]], function(captures)
+    local args = { captures[2], unpack(vim.fn.split(captures[3], ",")) }
+    local index_count = 0
+    local indices = { "i", "j", "k" }
+    local arg_str = vim.iter(ipairs(args))
+        :map(function(i, arg)
+            local str = nil
+            if arg:match("^%s*%S+%s*%.%.") then
+                index_count = index_count + 1
+                str = indices[index_count]
+            end
+
+            return string.format("${%d:%s}", i, str or "_")
+        end)
+        :join(", ")
+
+    return string.format("%s|%s| {\n\t${0}\n}", captures[1], arg_str)
+end)
 
 snip("haskell", "fn", "${1:name} :: ${2:type}\n${1:name} ${3:args} = ${0}")
