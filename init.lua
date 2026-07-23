@@ -549,6 +549,7 @@ fzf_lua.setup({
         preview = { border = "solid" },
     },
 })
+fzf_lua.register_ui_select()
 map("n", "<Leader>f", fzf_lua.files)
 map("n", "<Leader>F", fzf_lua.oldfiles)
 map("n", "<Leader>b", fzf_lua.buffers)
