@@ -168,10 +168,12 @@ local function render_tab(i, tab)
         end
     end
 
-    local path = api.nvim_buf_get_name(buf)
-    local name = path ~= "" and vim.fn.fnamemodify(path, ":t") or "[No Name]"
     local max_name_len = 20
-    name = #name > max_name_len and name:sub(1, max_name_len - 1) .. "…" or name
+    local path = api.nvim_buf_get_name(buf)
+    local is_dir = path:match("^oil://")
+    local name = vim.fn.fnamemodify(path, is_dir and ":s?oil://??:~:." or ":t")
+    name = name ~= "" and name or (is_dir and "./" or "[No Name]")
+    name = #name <= max_name_len and name or name:sub(1, max_name_len - 1) .. "…"
 
     local modified = api.nvim_get_option_value("modified", { buf = buf })
     local readonly = api.nvim_get_option_value("readonly", { buf = buf })
