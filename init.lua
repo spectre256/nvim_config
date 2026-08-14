@@ -717,13 +717,7 @@ map("n", "<Leader>gw", function()
 
     local repo = run("git config --get remote.origin.url || git rev-parse --show-toplevel")
     local branch = run("git branch --show-current")
-
-    vim.ui.select(workflows, {
-        prompt = "Select workflow:",
-        format_item = function(item)
-            return string.format(format, item.name, item.state, item.id)
-        end,
-    }, function(workflow)
+    local function run_workflow(workflow)
         if not workflow then return end
 
         local inputs = runJson("gh workflow view '%s' --yaml | yq '.on.workflow_dispatch.inputs'", workflow.name) or {}
@@ -736,6 +730,7 @@ map("n", "<Leader>gw", function()
                     scope = "buffer",
                 }, function(v) coroutine.yield(v) end)
 
+                if not value then coroutine.yield() end
                 defaults:set(repo, branch, name, value)
                 return name, value
             end)
@@ -750,7 +745,14 @@ map("n", "<Leader>gw", function()
 
         local cmd = string.format("gh workflow run '%s' --ref %s%s", workflow.name, branch, inputs_arg)
         vim.fn.jobstart(cmd)
-    end)
+    end
+
+    vim.ui.select(workflows, {
+        prompt = "Select workflow:",
+        format_item = function(item)
+            return string.format(format, item.name, item.state, item.id)
+        end,
+    }, coroutine.wrap(run_workflow))
 end)
 
 require("rose-pine").setup({
