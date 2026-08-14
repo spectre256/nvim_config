@@ -628,14 +628,78 @@ map("n", "<Leader>gg", neogit.open)
 map("n", "<Leader>gc", function() neogit.open({ "commit" }) end)
 map("n", "<Leader>gp", function() neogit.open({ "push" }) end)
 
-local function runJson(cmd, ...)
-    local handle = io.popen(cmd:format(...))
+local function run(cmd, ...)
+    local handle = io.popen(cmd:format(...)) -- TODO: stderr messes up terminal
     if not handle then return end
     local raw = handle:read("*a")
     handle:close()
+    return raw:gsub("\n$", "")
+end
 
-    if raw == "" then return end
+local function runJson(cmd, ...)
+    local raw = run(cmd, ...)
+    if not raw or raw == "" then return end
     return vim.json.decode(raw)
+end
+
+local defaults = {
+    path = nil,
+    data = {
+        global = {},   -- Keyed by [input]
+        repos = {},    -- Keyed by [repo][input]
+        branches = {}, -- Keyed by [repo][branch][input]
+    },
+}
+
+function defaults:open(path)
+    self.path = path
+
+    local handle = io.open(path, "r")
+    if not handle then return true end
+
+    local raw = handle:read("*a")
+    handle:close()
+    if raw == "" then return true end
+
+    local ok, data = pcall(vim.json.decode, raw)
+    if not ok then
+        return false, string.format("Failed to decode %s: %s", path, data)
+    end
+    self.data = data
+    return true
+end
+
+function defaults:get(repo, branch, input)
+    local global_value = self.data.global[input]
+    local repo_value = self.data.repos[repo] and self.data.repos[repo][input]
+    local branch_value = self.data.branches[repo]
+        and self.data.branches[repo][branch]
+        and self.data.branches[repo][branch][input]
+
+    return branch_value or repo_value or global_value
+end
+
+function defaults:set(repo, branch, input, value)
+    self.data.global[input] = self.data.global[input] or value
+
+    self.data.repos[repo] = self.data.repos[repo] or {}
+    self.data.repos[repo][input] = self.data.repos[repo][input] or value
+
+    self.data.branches[repo] = self.data.branches[repo] or {}
+    self.data.branches[repo][branch] = self.data.branches[repo][branch] or {}
+    self.data.branches[repo][branch][input] = value
+end
+
+function defaults:save()
+    if not self.path then return false, "File not open" end
+
+    local handle = io.open(self.path, "w")
+    if not handle then
+        return false, string.format("Failed to open file %s", self.path)
+    end
+    handle:write(vim.json.encode(self.data))
+    handle:close()
+    return true
 end
 
 map("n", "<Leader>gw", function()
@@ -647,6 +711,13 @@ map("n", "<Leader>gw", function()
         :fold(0, function(acc, name) return math.max(#name, acc or #name) end)
     local format = string.format("%%-%ds  %%s  %%s", padding)
 
+    local path = vim.fn.stdpath("state") .. "/gh_workflow_defaults.json"
+    local ok, err = defaults:open(path)
+    if not ok then error(err) end
+
+    local repo = run("git config --get remote.origin.url || git rev-parse --show-toplevel")
+    local branch = run("git branch --show-current")
+
     vim.ui.select(workflows, {
         prompt = "Select workflow:",
         format_item = function(item)
@@ -655,30 +726,29 @@ map("n", "<Leader>gw", function()
     }, function(workflow)
         if not workflow then return end
 
-        local inputs = runJson("gh workflow view '%s' --yaml | yq '.on.workflow_dispatch.inputs'", workflow.name)
-        local inputs_arg = ""
-        if inputs then
-            inputs_arg = vim.iter(pairs(inputs))
-                :map(function(name, opts)
-                    local value = nil
+        local inputs = runJson("gh workflow view '%s' --yaml | yq '.on.workflow_dispatch.inputs'", workflow.name) or {}
+        local inputs_arg = vim.iter(pairs(inputs))
+            :map(function(name, opts)
+                local default = defaults:get(repo, branch, name);
+                local value = coroutine.wrap(vim.ui.input)({
+                    default = default or opts.default,
+                    prompt = string.format("Enter the %s: ", (opts.description or name):lower()),
+                    scope = "buffer",
+                }, function(v) coroutine.yield(v) end)
 
-                    if not value then
-                        value = coroutine.wrap(vim.ui.input)({
-                            default = opts.default,
-                            prompt = string.format("Enter the %s: ", (opts.description or name):lower()),
-                            scope = "buffer",
-                        }, function(v) coroutine.yield(v) end)
-                    end
+                defaults:set(repo, branch, name, value)
+                return name, value
+            end)
+            :skip(function(_, value) return not value end)
+            :map(function(name, value)
+                return string.format(" -f '%s='\"%s\"", name, value)
+            end)
+            :join("")
 
-                    return name, value
-                end)
-                :map(function(name, value)
-                    return string.format(" -f '%s='\"%s\"", name, value)
-                end)
-                :join("")
-        end
+        ok, err = defaults:save()
+        if not ok then error(err) end
 
-        local cmd = string.format("gh workflow run '%s' --ref $(git branch --show-current)%s", workflow.name, inputs_arg)
+        local cmd = string.format("gh workflow run '%s' --ref %s%s", workflow.name, branch, inputs_arg)
         vim.fn.jobstart(cmd)
     end)
 end)
