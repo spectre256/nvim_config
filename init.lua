@@ -627,6 +627,28 @@ neogit.setup({
 map("n", "<Leader>gg", neogit.open)
 map("n", "<Leader>gc", function() neogit.open({ "commit" }) end)
 map("n", "<Leader>gp", function() neogit.open({ "push" }) end)
+map("n", "<Leader>gw", function()
+    local handle = io.popen("gh workflow list --json id,name,state")
+    if not handle then return end
+    local workflows = vim.json.decode(handle:read("*a"))
+    handle:close()
+
+    local padding = vim.iter(workflows)
+        :map(function(workflow) return workflow.name end)
+        :fold(0, function(acc, name) return math.max(#name, acc or #name) end)
+    local format = string.format("%%-%ds  %%s  %%s", padding)
+
+    vim.ui.select(workflows, {
+        prompt = "Select workflow:",
+        format_item = function(item)
+            return string.format(format, item.name, item.state, item.id)
+        end,
+    }, function(workflow)
+        if not workflow then return end
+        local cmd = string.format("gh workflow run '%s' --ref $(git branch --show-current)", workflow.name)
+        vim.fn.jobstart(cmd)
+    end)
+end)
 
 require("rose-pine").setup({
     variant = "main",
