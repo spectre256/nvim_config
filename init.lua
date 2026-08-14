@@ -627,11 +627,20 @@ neogit.setup({
 map("n", "<Leader>gg", neogit.open)
 map("n", "<Leader>gc", function() neogit.open({ "commit" }) end)
 map("n", "<Leader>gp", function() neogit.open({ "push" }) end)
-map("n", "<Leader>gw", function()
-    local handle = io.popen("gh workflow list --json id,name,state")
+
+local function runJson(cmd, ...)
+    local handle = io.popen(cmd:format(...))
     if not handle then return end
-    local workflows = vim.json.decode(handle:read("*a"))
+    local raw = handle:read("*a")
     handle:close()
+
+    if raw == "" then return end
+    return vim.json.decode(raw)
+end
+
+map("n", "<Leader>gw", function()
+    local workflows = runJson("gh workflow list --json id,name,state")
+    if not workflows then return end
 
     local padding = vim.iter(workflows)
         :map(function(workflow) return workflow.name end)
@@ -645,7 +654,31 @@ map("n", "<Leader>gw", function()
         end,
     }, function(workflow)
         if not workflow then return end
-        local cmd = string.format("gh workflow run '%s' --ref $(git branch --show-current)", workflow.name)
+
+        local inputs = runJson("gh workflow view '%s' --yaml | yq '.on.workflow_dispatch.inputs'", workflow.name)
+        local inputs_arg = ""
+        if inputs then
+            inputs_arg = vim.iter(pairs(inputs))
+                :map(function(name, opts)
+                    local value = nil
+
+                    if not value then
+                        value = coroutine.wrap(vim.ui.input)({
+                            default = opts.default,
+                            prompt = string.format("Enter the %s: ", (opts.description or name):lower()),
+                            scope = "buffer",
+                        }, function(v) coroutine.yield(v) end)
+                    end
+
+                    return name, value
+                end)
+                :map(function(name, value)
+                    return string.format(" -f '%s='\"%s\"", name, value)
+                end)
+                :join("")
+        end
+
+        local cmd = string.format("gh workflow run '%s' --ref $(git branch --show-current)%s", workflow.name, inputs_arg)
         vim.fn.jobstart(cmd)
     end)
 end)
