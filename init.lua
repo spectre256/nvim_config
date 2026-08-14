@@ -245,7 +245,7 @@ api.nvim_create_autocmd("CmdwinEnter", {
 })
 
 api.nvim_create_autocmd("FileType", {
-    pattern = "help",
+    pattern = { "help", "pager" },
     callback = function(ev)
         map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
     end,
@@ -362,10 +362,8 @@ local paste = vim.paste
 ---@diagnostic disable-next-line: duplicate-set-field
 vim.paste = function(lines, phase)
     for i, line in ipairs(lines) do
-        -- Scrub ANSI color codes
-        lines[i] = line:gsub("\27%[[0-9;mK]+", "")
-        -- Scrub Windows CR characters
-        lines[i] = line:gsub("\13$", "")
+        -- Scrub ANSI color codes and Windows line endings
+        lines[i] = line:gsub("\27%[[0-9;mK]+", ""):gsub("\13$", "")
     end
     return paste(lines, phase)
 end
