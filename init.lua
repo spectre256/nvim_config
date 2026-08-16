@@ -45,7 +45,7 @@ opt.undofile = true
 opt.foldmethod = "expr"
 opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 opt.foldenable = false
-opt.foldcolumn = "auto"
+opt.foldcolumn = "1"
 opt.foldtext = "v:lua.render_foldtext()"
 
 local function get_highlighted_row(bufnr, row, trim_space)
