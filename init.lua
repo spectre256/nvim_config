@@ -163,7 +163,7 @@ local function render_tab(i, tab)
     -- Don't change tabline for floating windows
     if is_floating(win) then
         local last_buf = tab_last_buf[tab]
-        if api.nvim_buf_is_valid(last_buf) then
+        if last_buf and api.nvim_buf_is_valid(last_buf) then
             buf = last_buf
         end
     end
@@ -627,17 +627,13 @@ map("n", "<Leader>gc", function() neogit.open({ "commit" }) end)
 map("n", "<Leader>gp", function() neogit.open({ "push" }) end)
 
 local function run(cmd, ...)
-    local handle = io.popen(cmd:format(...)) -- TODO: stderr messes up terminal
-    if not handle then return end
-    local raw = handle:read("*a")
-    handle:close()
-    return raw:gsub("\n$", "")
+    local res = vim.system({ "bash", "-c", cmd:format(...) }):wait()
+    return res and res.stdout:gsub("\n$", "")
 end
 
 local function runJson(cmd, ...)
     local raw = run(cmd, ...)
-    if not raw or raw == "" then return end
-    return vim.json.decode(raw)
+    return raw and raw ~= "" and vim.json.decode(raw)
 end
 
 local defaults = {
@@ -677,6 +673,7 @@ function defaults:get(repo, branch, input)
     return branch_value or repo_value or global_value
 end
 
+-- TODO: Global/repo values go stale
 function defaults:set(repo, branch, input, value)
     self.data.global[input] = self.data.global[input] or value
 
@@ -705,8 +702,8 @@ map("n", "<Leader>gw", function()
     if not workflows then return end
 
     local padding = vim.iter(workflows)
-        :map(function(workflow) return workflow.name end)
-        :fold(0, function(acc, name) return math.max(#name, acc or #name) end)
+        :map(function(workflow) return #workflow.name end)
+        :fold(0, function(acc, len) return math.max(acc, len) end)
     local format = string.format("%%-%ds  %%s  %%s", padding)
 
     local path = vim.fn.stdpath("state") .. "/gh_workflow_defaults.json"
@@ -732,7 +729,6 @@ map("n", "<Leader>gw", function()
                 defaults:set(repo, branch, name, value)
                 return name, value
             end)
-            :skip(function(_, value) return not value end)
             :map(function(name, value)
                 return string.format(" -f '%s='\"%s\"", name, value)
             end)
@@ -742,7 +738,7 @@ map("n", "<Leader>gw", function()
         if not ok then error(err) end
 
         local cmd = string.format("gh workflow run '%s' --ref %s%s", workflow.name, branch, inputs_arg)
-        vim.fn.jobstart(cmd)
+        vim.system({ "bash", "-c", cmd })
     end
 
     vim.ui.select(workflows, {
@@ -1012,13 +1008,13 @@ api.nvim_create_autocmd("TextChangedI", {
             snippets.state.last_row, snippets.state.last_col = row, col
             if not added_char then goto skip end
 
-            -- Subtract one to get node at beginning of cursor, necessary when typing at end of line
             local lang_snippets = snippets.rules[parser:lang()]
             if not lang_snippets then goto skip end
 
+            -- Subtract one to get node at beginning of cursor, necessary when typing at end of line
             local line = api.nvim_get_current_line():sub(1, col)
 
-            for _, s in pairs(lang_snippets) do
+            for _, s in ipairs(lang_snippets) do
                 local captures = vim.fn.matchlist(line, s.lhs)
                 if #captures == 0 then goto continue end
 
@@ -1084,7 +1080,7 @@ local rval_opts = { include = {
     "assignment_statement",
     "variable_declaration",
 } }
-local xval_opts = { include = vim.list_extend(lval_opts.include, rval_opts.include) }
+local xval_opts = { include = vim.list_extend(vim.deepcopy(lval_opts.include), rval_opts.include) }
 
 -- Lua
 snip("lua", "lo", "local ", lval_opts)
@@ -1129,7 +1125,7 @@ snip("zig", "catch |", "$0${1:err}| {\n\t${0}\n}", lval_opts)
 snip("zig", "def", "defer ", lval_opts)
 snip("zig", "err", "errdefer ", lval_opts)
 snip("zig", "if", "if (${1})", lval_opts)
-snip("zig", "if ([^()]) ", "$0{\n\t${2}\n}${0}", lval_opts)
+snip("zig", "if ([^()]*) ", "$0{\n\t${2}\n}${0}", lval_opts)
 snip("zig", "if (.*)|", "$0{\n\t${2}\n}${0}", lval_opts)
 snip("zig", "el", "else", lval_opts)
 snip("zig", "else ", "else {\n\t${1}\n}${0}", lval_opts)
