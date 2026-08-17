@@ -1,4 +1,5 @@
 local opt = vim.opt
+local api = vim.api
 
 opt.number = true
 opt.relativenumber = true
@@ -77,3 +78,13 @@ vim.paste = function(lines, phase)
     end
     return paste(lines, phase)
 end
+
+-- Highlight all while searching, clear on exit
+opt.incsearch = true
+opt.hlsearch = false
+api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave", "CmdwinEnter", "CmdwinLeave" }, {
+    pattern = { "/", "\\?" },
+    callback = function(ev)
+        opt.hlsearch = ev.event == "CmdlineEnter" or ev.event == "CmdwinEnter"
+    end,
+})
