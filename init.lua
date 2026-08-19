@@ -1,96 +1,9 @@
-local opt = vim.opt
-local opt_local = vim.opt_local
-local api = vim.api
-local map = vim.keymap.set
-
 require("options")
 require("lsp")
 require("foldtext").setup()
-require("statusline").setup()
 require("tabline").setup()
-
--- Command buffer settings
-api.nvim_create_autocmd("CmdwinEnter", {
-    callback = function(ev)
-        local opts = { buf = ev.buf }
-        map("n", "<Esc>", "<C-w>c", opts)
-        map("n", ":", ":", opts)
-        map("i", "<C-Space>", "<Tab>", { remap =  true, buf = ev.buf })
-
-        opt_local.number = false
-        opt_local.relativenumber = false
-        opt_local.signcolumn = "no"
-        opt_local.foldcolumn = "0"
-    end,
-})
-
-api.nvim_create_autocmd("FileType", {
-    pattern = { "help", "pager" },
-    callback = function(ev)
-        map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
-    end,
-})
-
-local writing_bufs = {}
-local writing_statuscolumn = "%{repeat(' ', (winwidth(0) - &textwidth) / 2)}"
-api.nvim_create_autocmd("FileType", {
-    pattern = { "markdown", "text", "typst", "tex", "plaintex", "help", "man" },
-    callback = function(ev)
-        writing_bufs[ev.buf] = true
-
-        opt_local.number = false
-        opt_local.relativenumber = false
-        opt_local.signcolumn = "no"
-        opt_local.foldcolumn = "0"
-        opt_local.statuscolumn = writing_statuscolumn
-        opt_local.textwidth = 80
-        opt_local.cursorline = false
-        opt_local.wrap = true
-        opt_local.linebreak = true
-        opt_local.breakindent = true
-        opt_local.spell = true
-        opt_local.conceallevel = 2
-    end,
-})
-
-api.nvim_create_autocmd("BufWinEnter", {
-    callback = function(ev)
-        if vim.bo[ev.buf].filetype == "help" then -- Help buffers are weird
-            writing_bufs[ev.buf] = true
-        end
-
-        if writing_bufs[ev.buf] then
-            opt_local.statuscolumn = writing_statuscolumn
-        elseif vim.fn.getcmdwintype() ~= "" then
-            opt_local.statuscolumn = " "
-        elseif vim.bo[ev.buf].buftype == "terminal" then
-            return -- Set by TermOpen autocmd
-        else
-            opt_local.statuscolumn = "%C%s%=%{v:virtnum != 0 ? '' : v:relnum == 0 ? v:lnum : v:relnum} " -- Fix left aligned number
-        end
-    end,
-})
-
-api.nvim_create_autocmd("WinResized", {
-    callback = function()
-        local wins = vim.v.event.windows or {}
-
-        for _, win in ipairs(wins) do
-            local buf = api.nvim_win_get_buf(win)
-
-            if writing_bufs[buf] then
-                vim.wo[win].statuscolumn = writing_statuscolumn
-            end
-        end
-    end,
-})
-
-api.nvim_create_autocmd("BufDelete", {
-    callback = function(ev)
-        writing_bufs[ev.buf] = nil
-    end,
-})
-
+require("statusline").setup()
+require("statuscolumn"):setup()
 require("term")
 require("mappings")
 require("treesitter")

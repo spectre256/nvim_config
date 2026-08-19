@@ -54,3 +54,10 @@ map("n", "<C-b>o", function()
     end
 end)
 map("i", "<C-Space>", "<C-x><C-o>")
+
+api.nvim_create_autocmd("FileType", {
+    pattern = { "help", "pager" },
+    callback = function(ev)
+        map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
+    end,
+})
