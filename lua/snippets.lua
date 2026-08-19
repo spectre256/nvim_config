@@ -159,7 +159,7 @@ function Snippets:setup()
     map({ "i", "s" }, "<BS>", function()
         if not (self.state.expanded and self:unexpand_snippet()) then
             api.nvim_feedkeys(ok and npairs.autopairs_bs() or vim.keycode("<BS>"), "n", false)
-            snippets.state.expanded = false
+            self.state.expanded = false
         end
     end)
     map({ "i", "s" }, "<Tab>", function()
@@ -181,3 +181,5 @@ function Snippets:setup()
         callback = function(ev) self:on_key(ev) end,
     })
 end
+
+return Snippets
