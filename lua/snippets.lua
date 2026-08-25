@@ -48,6 +48,7 @@ function Snippets:add(langs, lhs, rhs, opts)
     opts = opts or {}
     local include = vim.list_extend(vim.list_slice(opts), opts.include or {})
     if #include == 0 then include = { "empty" } end
+    -- TODO: Implement
     local exclude = opts.exclude
 
     for _, lang in ipairs(langs) do
@@ -124,6 +125,7 @@ function Snippets:reset(buf)
         last_col = 0,
         expanded = false,
         frames = {},
+        frame_i = 1,
     }
 
     self.state[buf] = state
@@ -135,48 +137,66 @@ function Snippets:buf_state(buf)
     return self.state[buf] or self:reset(buf)
 end
 
-function Snippets:is_saved(buf)
+function Snippets:has_undo(buf)
     buf = buf or api.nvim_get_current_buf()
-    return self.state[buf] and #self.state[buf].frames > 0
+    local state = self.state[buf]
+    return state and state.frame_i > 1
+end
+
+function Snippets:has_redo(buf)
+    buf = buf or api.nvim_get_current_buf()
+    local state = self.state[buf]
+    return state and state.frame_i - 1 < #state.frames
 end
 
 function Snippets:save(buf, deleted, row1, col1, row2, col2)
-    local frame = {
+    local new_frame = {
         marks = {},
         deleted = deleted,
     }
 
-    frame.marks[1] = api.nvim_buf_set_extmark(buf, self.ns, row1, col1, { right_gravity = false })
-    frame.marks[2] = api.nvim_buf_set_extmark(buf, self.ns, row2, col2, { right_gravity = true })
+    new_frame.marks[1] = api.nvim_buf_set_extmark(buf, self.ns, row1, col1, { right_gravity = false })
+    new_frame.marks[2] = api.nvim_buf_set_extmark(buf, self.ns, row2, col2, { right_gravity = true })
 
-    table.insert(self:buf_state(buf).frames, frame)
+    local state = self:buf_state(buf)
+
+    -- Cut off frames after current save point, clobber with new frame
+    local old_frames = vim.list_slice(state.frames, state.frame_i)
+    state.frames = vim.list_slice(state.frames, 1, state.frame_i - 1)
+    for _, frame in ipairs(old_frames) do
+        if frame.marks[1] then api.nvim_buf_del_extmark(buf, self.ns, frame.marks[1]) end
+        if frame.marks[2] then api.nvim_buf_del_extmark(buf, self.ns, frame.marks[2]) end
+    end
+
+    table.insert(state.frames, new_frame)
+    state.frame_i = state.frame_i + 1
 end
 
-function Snippets:restore(buf)
+function Snippets:restore(buf, action)
     buf = buf or api.nvim_get_current_buf()
 
-    local frame = table.remove(self:buf_state(buf).frames)
-    if not frame then return end
+    local is_undo = action ~= "redo" -- Undo if "undo" or nil, otherwise redo
+    if not (is_undo and self:has_undo(buf) or not is_undo and self:has_redo(buf)) then return false end
+    vim.snippet.stop()
+
+    local state = self:buf_state(buf)
+
+    state.frame_i = state.frame_i + (is_undo and -1 or 0)
+    local frame = state.frames[state.frame_i]
+    state.frame_i = state.frame_i + (is_undo and 0 or 1)
+    state.expanded = not is_undo
 
     local row1, col1 = unpack(api.nvim_buf_get_extmark_by_id(buf, self.ns, frame.marks[1], { details = false }))
     local row2, col2 = unpack(api.nvim_buf_get_extmark_by_id(buf, self.ns, frame.marks[2], { details = false }))
-    api.nvim_buf_del_extmark(buf, self.ns, frame.marks[1])
-    api.nvim_buf_del_extmark(buf, self.ns, frame.marks[2])
-    api.nvim_buf_set_text(buf, row1, col1, row2, col2, { frame.deleted })
-    api.nvim_win_set_cursor(0, { row1 + 1, col1 + #frame.deleted })
-end
 
-function Snippets:unexpand_snippet(buf)
-    if self:is_saved() then
-        vim.snippet.stop()
+    -- Undo/redo just swaps deleted and existing text
+    local deleted = frame.deleted
+    frame.deleted = api.nvim_buf_get_text(buf, row1, col1, row2, col2, {})
+    api.nvim_buf_set_text(buf, row1, col1, row2, col2, deleted)
 
-        buf = buf or api.nvim_get_current_buf()
-        self:buf_state(buf).expanded = false
-        self:restore()
-        return true
-    else
-        return false
-    end
+    api.nvim_win_set_cursor(0, { row1 + #deleted, col1 + #deleted[#deleted] })
+
+    return true
 end
 
 function Snippets:on_key(ev)
@@ -198,7 +218,8 @@ function Snippets:on_key(ev)
     local result = pattern:match(line, 1, col)
     if result then
         local start = result.start - 1
-        self:save(ev.buf, line:sub(result.start, col), row, start, row, col)
+        -- TODO: Multi-line handling
+        self:save(ev.buf, { line:sub(result.start, col) }, row, start, row, col)
         api.nvim_buf_set_text(ev.buf, row, start, row, col, {})
         vim.snippet.expand(result.match)
         state.expanded = true
@@ -207,8 +228,14 @@ end
 
 function Snippets:setup()
     map({ "i", "s" }, "<C-e>", function()
-        if not self:unexpand_snippet() then
+        if not self:restore(nil, "undo") then
             api.nvim_feedkeys(k"<C-e>", "n", false)
+        end
+    end)
+
+    map({ "i", "s" }, "<C-y>", function()
+        if not self:restore(nil, "redo") then
+            api.nvim_feedkeys(k"<C-y>", "n", false)
         end
     end)
 
@@ -216,7 +243,7 @@ function Snippets:setup()
     map({ "i", "s" }, "<BS>", function()
         local buf = api.nvim_get_current_buf()
         local state = self:buf_state(buf)
-        if not (state.expanded and self:unexpand_snippet()) then
+        if not (state.expanded and self:restore(buf, "undo")) then
             api.nvim_feedkeys(ok and npairs.autopairs_bs() or k"<BS>", "n", false)
         end
     end)
