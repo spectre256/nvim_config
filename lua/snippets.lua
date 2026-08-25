@@ -15,13 +15,14 @@ local Snippets = {
         expanded = false,
         deleted = nil,
         marks = { nil, nil },
+        last_tick = 0,
         last_row = 0,
         last_col = 0,
     },
 }
 setmetatable(Snippets, Snippets)
 
-function make_defs(rules)
+local function make_defs(rules)
     local defs = {}
     for name, _ in pairs(rules) do
         defs[name] = lpeg.V(name)
@@ -50,12 +51,13 @@ end
 
 function Snippets:build(lang)
     if not self.rules[lang] then return nil end
+    if not self.langs[lang] then self:lang(lang) end
 
     -- Create set of alternations per context
     local at_cursor = lpeg.Cmt(lpeg.Carg(1), function(_, pos, col) return pos == col + 1 end)
     local branches = {}
     for _, rule in ipairs(self.rules[lang]) do
-        pattern = lpeg.Cg(lpeg.Cp(), "start") * lpeg.Cg(rule.lhs / rule.rhs, "match") * at_cursor
+        local pattern = lpeg.Cg(lpeg.Cp(), "start") * lpeg.Cg(rule.lhs / rule.rhs, "match") * at_cursor
 
         for _, ctx in ipairs(rule.ctx) do
             branches[ctx] = branches[ctx] and branches[ctx] + pattern or pattern
@@ -82,7 +84,7 @@ function Snippets:build(lang)
 end
 
 function Snippets:pattern(lang)
-    if not self.patterns[lang] then self.patterns[lang] = Snippets:build(lang) end
+    if not self.patterns[lang] then self.patterns[lang] = self:build(lang) end
     return self.patterns[lang]
 end
 
@@ -93,6 +95,10 @@ function Snippets:add(langs, lhs, rhs, opts)
     for _, lang in ipairs(langs) do
         if not self.rules[lang] then self.rules[lang] = {} end
         local computed_lhs = type(lhs) == "string" and vim.re.compile(lhs, make_defs(self.langs[lang])) or lhs
+
+        for _, ctx in ipairs(opts.ctx) do
+            assert(self.langs[lang][ctx])
+        end
 
         table.insert(self.rules[lang], {
             lang = lang,
@@ -204,7 +210,17 @@ function Snippets:setup()
         api.nvim_feedkeys(k"<Esc>", "n", false)
     end)
 
-    -- Auto-expand snippets
+    api.nvim_create_autocmd({ "InsertEnter", "CursorMovedI" }, {
+        callback = function(ev)
+            local tick = api.nvim_buf_get_changedtick(ev.buf)
+            if ev.event == "InsertEnter" or tick == self.state.last_tick then
+                local row, col = unpack(api.nvim_win_get_cursor(0))
+                self.state.last_row, self.state.last_col = row - 1, col
+            end
+            self.state.last_tick = tick
+        end,
+    })
+
     api.nvim_create_autocmd("TextChangedI", {
         callback = function(ev) self:on_key(ev) end,
     })
