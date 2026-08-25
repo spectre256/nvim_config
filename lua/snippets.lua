@@ -29,34 +29,39 @@ function make_defs(rules)
     return defs
 end
 
-function Snippets:lang(lang_name, rules)
+function Snippets:lang(langs, rules)
     local defs = make_defs(rules)
     for rule_name, rule in pairs(rules) do
         if type(rule) == "string" then
             rules[rule_name] = vim.re.compile(rule, defs)
         end
     end
-    rules.any = rules.any or lpeg.P(1) ^ 0
+    rules.empty = rules.empty or lpeg.P(true)
 
-    self.langs[lang_name] = rules
+    if type(langs) ~= "table" then langs = { langs } end
+    for _, lang in ipairs(langs) do
+        self.langs[lang] = rules
+    end
 end
 
 function Snippets:build(lang)
     if not self.rules[lang] then return nil end
 
+
     -- Create set of alternations per context
+    local at_cursor = lpeg.Cmt(lpeg.Carg(1), function(_, pos, col) return pos == col + 1 end)
     local branches = {}
-    for _, rule in pairs(self.rules[lang]) do
-        pattern = rule.lhs / rule.rhs
+    for _, rule in ipairs(self.rules[lang]) do
+        pattern = rule.lhs / rule.rhs * at_cursor
 
         for _, ctx in ipairs(rule.ctx) do
-            branches[ctx] = branches[ctx] and pattern + branches[ctx] or pattern
+            branches[ctx] = branches[ctx] and branches[ctx] + pattern or pattern
         end
     end
 
     -- Combine into single pattern
     local combined = vim.iter(branches)
-        :fold(-lpeg.P(1), function(acc, ctx, pattern)
+        :fold(lpeg.P(false), function(acc, ctx, pattern)
             return acc + lpeg.V(ctx) * pattern
         end)
     combined = lpeg.Ct(lpeg.Cg(combined, "match") * lpeg.Cg(lpeg.Cp(), "pos"))
@@ -73,7 +78,7 @@ end
 
 function Snippets:add(langs, lhs, rhs, opts)
     if type(langs) ~= "table" then langs = { langs } end
-    opts = vim.tbl_extend("keep", opts or {}, { ctx = { "any" } })
+    opts = vim.tbl_extend("keep", opts or {}, { ctx = { "empty" } })
 
     for _, lang in ipairs(langs) do
         if not self.rules[lang] then self.rules[lang] = {} end
@@ -147,8 +152,8 @@ function Snippets:on_key(ev)
     if not pattern then return end
 
     local line = api.nvim_get_current_line()
-    local result = pattern:match(line)
-    if result and result.pos == col + 1 then
+    local result = pattern:match(line, 1, col)
+    if result then
         self.state:save(ev.buf, line:sub(1, col), row, 0, row, col)
         api.nvim_buf_set_text(ev.buf, row, 0, row, col, {})
         vim.snippet.expand(result.match)

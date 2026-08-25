@@ -20,7 +20,7 @@ snip:lang("lua", {
     keyword = "'local' / 'break' / 'return' / 'goto' / 'function' / 'if' / 'then' / 'else' / 'for' / 'in' / 'while' / 'repeat' / 'do' / 'end'",
     number = "[0-9]+",
     str = [['"' [^"]* '"']],
-    expr = "%ident / %number / %str", -- TODO: Ok obviously lua is more complicated than this
+    expr = "%ident / %number / %str", -- TODO: Ok yes obviously lua is more complicated than this
     lval = "%ident (%s* '.' %ident / %s* '[' %s* %expr %s* ']')*",
     lhs = "'local'? %s+ %lval (%s* ',' %s* %lval)*",
     block = "%s*", -- TODO: Single lines with nested blocks?
