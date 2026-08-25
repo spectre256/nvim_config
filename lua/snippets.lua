@@ -49,6 +49,36 @@ function Snippets:lang(langs, rules)
     end
 end
 
+function Snippets:add(langs, lhs, rhs, opts)
+    if type(langs) ~= "table" then langs = { langs } end
+    opts = vim.tbl_extend("keep", opts or {}, { include = { "empty" } })
+
+    for _, lang in ipairs(langs) do
+        if not self.rules[lang] then self.rules[lang] = {} end
+        local computed_lhs = type(lhs) == "string" and vim.re.compile(lhs, make_defs(self.langs[lang])) or lhs
+
+        local include = opts.include
+        local exclude = opts.exclude
+        vim.list_extend(include, opts)
+
+        for _, ctx in ipairs(include) do
+            assert(self.langs[lang][ctx])
+        end
+
+        table.insert(self.rules[lang], {
+            lang = lang,
+            lhs = computed_lhs,
+            rhs = rhs,
+            include = include,
+            exclude = exclude,
+        })
+    end
+end
+
+function Snippets:__call(langs, lhs, rhs, opts)
+    self:add(langs, lhs, rhs, opts)
+end
+
 function Snippets:build(lang)
     if not self.rules[lang] then return nil end
     if not self.langs[lang] then self:lang(lang) end
@@ -59,7 +89,7 @@ function Snippets:build(lang)
     for _, rule in ipairs(self.rules[lang]) do
         local pattern = lpeg.Cg(lpeg.Cp(), "start") * lpeg.Cg(rule.lhs / rule.rhs, "match") * at_cursor
 
-        for _, ctx in ipairs(rule.ctx) do
+        for _, ctx in ipairs(rule.include) do
             branches[ctx] = branches[ctx] and branches[ctx] + pattern or pattern
         end
     end
@@ -86,31 +116,6 @@ end
 function Snippets:pattern(lang)
     if not self.patterns[lang] then self.patterns[lang] = self:build(lang) end
     return self.patterns[lang]
-end
-
-function Snippets:add(langs, lhs, rhs, opts)
-    if type(langs) ~= "table" then langs = { langs } end
-    opts = vim.tbl_extend("keep", opts or {}, { ctx = { "empty" } })
-
-    for _, lang in ipairs(langs) do
-        if not self.rules[lang] then self.rules[lang] = {} end
-        local computed_lhs = type(lhs) == "string" and vim.re.compile(lhs, make_defs(self.langs[lang])) or lhs
-
-        for _, ctx in ipairs(opts.ctx) do
-            assert(self.langs[lang][ctx])
-        end
-
-        table.insert(self.rules[lang], {
-            lang = lang,
-            lhs = computed_lhs,
-            rhs = rhs,
-            ctx = opts.ctx,
-        })
-    end
-end
-
-function Snippets:__call(langs, lhs, rhs, opts)
-    self:add(langs, lhs, rhs, opts)
 end
 
 function Snippets.state:reset(bufnr)
