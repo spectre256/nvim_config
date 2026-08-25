@@ -17,7 +17,7 @@ local snip = require("snippets")
 snip:setup()
 snip:lang("lua", {
     ident = "!%keyword & [a-zA-Z] [a-zA-Z0-9_]*",
-    keyword = "'local' / 'break' / 'return' / 'goto' / 'function' / 'if' / 'then' / 'else' / 'for' / 'in' / 'while' / 'repeat' / 'do' / 'end'",
+    keyword = "'local' / 'break' / 'return' / 'goto' / 'function' / 'not' / 'and' / 'or' / 'if' / 'then' / 'else' / 'for' / 'in' / 'while' / 'repeat' / 'do' / 'end'",
     number = "[0-9]+",
     str = [['"' [^"]* '"']],
     expr = "%ident / %number / %str", -- TODO: Ok yes obviously lua is more complicated than this
@@ -34,7 +34,8 @@ snip:lang("zig", {
     block = "%s*",
 })
 
-snip("zig", "'if' %s* %parens %s", "%0{${1}}${0}", { ctx = { "block" } })
+snip("zig", "'if' %s* %parens %s", "%0{${1}}${0}", { ctx = { "any" } })
+-- snip("zig", "'if' %s* %parens %s", "%0{${1}}${0}", { ctx = { "block" } })
 
 -- local lval_opts = { include = {
 --     -- Lua

@@ -36,7 +36,11 @@ function Snippets:lang(langs, rules)
             rules[rule_name] = vim.re.compile(rule, defs)
         end
     end
-    rules.empty = rules.empty or lpeg.P(true)
+
+    rules = vim.tbl_extend("keep", rules, {
+        empty = lpeg.P(true),
+        any = function(rule) return rule + lpeg.P(1) * lpeg.V("any") end,
+    })
 
     if type(langs) ~= "table" then langs = { langs } end
     for _, lang in ipairs(langs) do
@@ -47,12 +51,11 @@ end
 function Snippets:build(lang)
     if not self.rules[lang] then return nil end
 
-
     -- Create set of alternations per context
     local at_cursor = lpeg.Cmt(lpeg.Carg(1), function(_, pos, col) return pos == col + 1 end)
     local branches = {}
     for _, rule in ipairs(self.rules[lang]) do
-        pattern = rule.lhs / rule.rhs * at_cursor
+        pattern = lpeg.Cg(lpeg.Cp(), "start") * lpeg.Cg(rule.lhs / rule.rhs, "match") * at_cursor
 
         for _, ctx in ipairs(rule.ctx) do
             branches[ctx] = branches[ctx] and branches[ctx] + pattern or pattern
@@ -62,12 +65,19 @@ function Snippets:build(lang)
     -- Combine into single pattern
     local combined = vim.iter(branches)
         :fold(lpeg.P(false), function(acc, ctx, pattern)
+            if type(self.langs[lang][ctx]) == "function" then return acc + lpeg.V(ctx) end
             return acc + lpeg.V(ctx) * pattern
         end)
-    combined = lpeg.Ct(lpeg.Cg(combined, "match") * lpeg.Cg(lpeg.Cp(), "pos"))
+    combined = lpeg.Ct(combined)
 
     -- Build grammar
     local grammar = vim.tbl_extend("error", { "top", top = combined }, self.langs[lang])
+    for ctx, rule in pairs(grammar) do
+        if type(rule) == "function" then
+            grammar[ctx] = rule(branches[ctx] or lpeg.P(false))
+        end
+    end
+
     return lpeg.P(grammar)
 end
 
@@ -154,8 +164,9 @@ function Snippets:on_key(ev)
     local line = api.nvim_get_current_line()
     local result = pattern:match(line, 1, col)
     if result then
-        self.state:save(ev.buf, line:sub(1, col), row, 0, row, col)
-        api.nvim_buf_set_text(ev.buf, row, 0, row, col, {})
+        local start = result.start - 1
+        self.state:save(ev.buf, line:sub(result.start, col), row, start, row, col)
+        api.nvim_buf_set_text(ev.buf, row, start, row, col, {})
         vim.snippet.expand(result.match)
         self.state.expanded = true
     else
