@@ -166,11 +166,13 @@ function Snippets:restore(buf)
     api.nvim_win_set_cursor(0, { row1 + 1, col1 + #frame.deleted })
 end
 
-function Snippets:unexpand_snippet()
+function Snippets:unexpand_snippet(buf)
     if self:is_saved() then
         vim.snippet.stop()
+
+        buf = buf or api.nvim_get_current_buf()
+        self:buf_state(buf).expanded = false
         self:restore()
-        api.nvim_feedkeys(k"<Esc>a", "n", false)
         return true
     else
         return false
@@ -187,6 +189,7 @@ function Snippets:on_key(ev)
     local added_char = row == state.last_row and col > state.last_col
     state.last_row, state.last_col = row, col
     if not added_char then return end
+    state.expanded = false
 
     local pattern = self:pattern(vim.bo[ev.buf].filetype)
     if not pattern then return end
@@ -199,8 +202,6 @@ function Snippets:on_key(ev)
         api.nvim_buf_set_text(ev.buf, row, start, row, col, {})
         vim.snippet.expand(result.match)
         state.expanded = true
-    else
-        state.expanded = false
     end
 end
 
@@ -217,7 +218,6 @@ function Snippets:setup()
         local state = self:buf_state(buf)
         if not (state.expanded and self:unexpand_snippet()) then
             api.nvim_feedkeys(ok and npairs.autopairs_bs() or k"<BS>", "n", false)
-            state.expanded = false
         end
     end)
 
