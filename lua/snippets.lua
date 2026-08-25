@@ -51,15 +51,15 @@ end
 
 function Snippets:add(langs, lhs, rhs, opts)
     if type(langs) ~= "table" then langs = { langs } end
-    opts = vim.tbl_extend("keep", opts or {}, { include = { "empty" } })
+
+    opts = opts or {}
+    local include = vim.list_extend(vim.list_slice(opts), opts.include or {})
+    if #include == 0 then include = { "empty" } end
+    local exclude = opts.exclude
 
     for _, lang in ipairs(langs) do
         if not self.rules[lang] then self.rules[lang] = {} end
         local computed_lhs = type(lhs) == "string" and vim.re.compile(lhs, make_defs(self.langs[lang])) or lhs
-
-        local include = opts.include
-        local exclude = opts.exclude
-        vim.list_extend(include, opts)
 
         for _, ctx in ipairs(include) do
             assert(self.langs[lang][ctx])
