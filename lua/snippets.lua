@@ -10,15 +10,8 @@ local Snippets = {
     langs = {},
     rules = {},
     patterns = {},
-    state = {
-        ns = api.nvim_create_namespace("snippets"),
-        expanded = false,
-        deleted = nil,
-        marks = { nil, nil },
-        last_tick = 0,
-        last_row = 0,
-        last_col = 0,
-    },
+    ns = api.nvim_create_namespace("snippets"),
+    state = {},
 }
 setmetatable(Snippets, Snippets)
 
@@ -118,40 +111,65 @@ function Snippets:pattern(lang)
     return self.patterns[lang]
 end
 
-function Snippets.state:reset(bufnr)
-    self.deleted = nil
-    if self.marks[1] then api.nvim_buf_del_extmark(bufnr, self.ns, self.marks[1]) end
-    if self.marks[2] then api.nvim_buf_del_extmark(bufnr, self.ns, self.marks[2]) end
-    self.marks = { nil, nil }
+function Snippets:reset(buf)
+    local state = self.state[buf]
+    for _, frame in ipairs((state and state.frames) or {}) do
+        if frame.marks[1] then api.nvim_buf_del_extmark(buf, self.ns, frame.marks[1]) end
+        if frame.marks[2] then api.nvim_buf_del_extmark(buf, self.ns, frame.marks[2]) end
+    end
+
+    state = {
+        last_tick = 0,
+        last_row = 0,
+        last_col = 0,
+        expanded = false,
+        frames = {},
+    }
+
+    self.state[buf] = state
+    return state
 end
 
-function Snippets.state:is_saved()
-    return self.deleted ~= nil
+function Snippets:buf_state(buf)
+    buf = buf or api.nvim_get_current_buf()
+    return self.state[buf] or self:reset(buf)
 end
 
-function Snippets.state:save(bufnr, deleted, row1, col1, row2, col2)
-    if self:is_saved() then self:reset(bufnr) end
-
-    self.marks[1] = api.nvim_buf_set_extmark(bufnr, self.ns, row1, col1, { right_gravity = false })
-    self.marks[2] = api.nvim_buf_set_extmark(bufnr, self.ns, row2, col2, { right_gravity = true })
-    self.deleted = deleted
+function Snippets:is_saved(buf)
+    buf = buf or api.nvim_get_current_buf()
+    return self.state[buf] and #self.state[buf].frames > 0
 end
 
-function Snippets.state:restore(bufnr)
-    if not self:is_saved() then return end
+function Snippets:save(buf, deleted, row1, col1, row2, col2)
+    local frame = {
+        marks = {},
+        deleted = deleted,
+    }
 
-    local row1, col1 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[1], { details = false }))
-    local row2, col2 = unpack(api.nvim_buf_get_extmark_by_id(bufnr, self.ns, self.marks[2], { details = false }))
-    api.nvim_buf_set_text(bufnr, row1, col1, row2, col2, { self.deleted })
-    api.nvim_win_set_cursor(0, { row1 + 1, col1 + #self.deleted })
+    frame.marks[1] = api.nvim_buf_set_extmark(buf, self.ns, row1, col1, { right_gravity = false })
+    frame.marks[2] = api.nvim_buf_set_extmark(buf, self.ns, row2, col2, { right_gravity = true })
 
-    self:reset(bufnr)
+    table.insert(self:buf_state(buf).frames, frame)
+end
+
+function Snippets:restore(buf)
+    buf = buf or api.nvim_get_current_buf()
+
+    local frame = table.remove(self:buf_state(buf).frames)
+    if not frame then return end
+
+    local row1, col1 = unpack(api.nvim_buf_get_extmark_by_id(buf, self.ns, frame.marks[1], { details = false }))
+    local row2, col2 = unpack(api.nvim_buf_get_extmark_by_id(buf, self.ns, frame.marks[2], { details = false }))
+    api.nvim_buf_del_extmark(buf, self.ns, frame.marks[1])
+    api.nvim_buf_del_extmark(buf, self.ns, frame.marks[2])
+    api.nvim_buf_set_text(buf, row1, col1, row2, col2, { frame.deleted })
+    api.nvim_win_set_cursor(0, { row1 + 1, col1 + #frame.deleted })
 end
 
 function Snippets:unexpand_snippet()
-    if self.state:is_saved() then
+    if self:is_saved() then
         vim.snippet.stop()
-        self.state:restore(0)
+        self:restore()
         api.nvim_feedkeys(k"<Esc>a", "n", false)
         return true
     else
@@ -165,8 +183,9 @@ function Snippets:on_key(ev)
     row = row - 1
 
     -- Only expand when adding characters, not removing
-    local added_char = row == self.state.last_row and col > self.state.last_col
-    self.state.last_row, self.state.last_col = row, col
+    local state = self:buf_state(ev.buf)
+    local added_char = row == state.last_row and col > state.last_col
+    state.last_row, state.last_col = row, col
     if not added_char then return end
 
     local pattern = self:pattern(vim.bo[ev.buf].filetype)
@@ -176,12 +195,12 @@ function Snippets:on_key(ev)
     local result = pattern:match(line, 1, col)
     if result then
         local start = result.start - 1
-        self.state:save(ev.buf, line:sub(result.start, col), row, start, row, col)
+        self:save(ev.buf, line:sub(result.start, col), row, start, row, col)
         api.nvim_buf_set_text(ev.buf, row, start, row, col, {})
         vim.snippet.expand(result.match)
-        self.state.expanded = true
+        state.expanded = true
     else
-        self.state.expanded = false
+        state.expanded = false
     end
 end
 
@@ -194,15 +213,18 @@ function Snippets:setup()
 
     local ok, npairs = pcall(require, "nvim-autopairs")
     map({ "i", "s" }, "<BS>", function()
-        if not (self.state.expanded and self:unexpand_snippet()) then
+        local buf = api.nvim_get_current_buf()
+        local state = self:buf_state(buf)
+        if not (state.expanded and self:unexpand_snippet()) then
             api.nvim_feedkeys(ok and npairs.autopairs_bs() or k"<BS>", "n", false)
-            self.state.expanded = false
+            state.expanded = false
         end
     end)
 
     map({ "i", "s" }, "<Tab>", function()
         if vim.snippet.active({ direction = 1 }) then
-            self.state.expanded = false
+            local buf = api.nvim_get_current_buf()
+            self:buf_state(buf).expanded = false
             vim.snippet.jump(1)
         else
             api.nvim_feedkeys(k"<Tab>", "n", false)
@@ -218,16 +240,21 @@ function Snippets:setup()
     api.nvim_create_autocmd({ "InsertEnter", "CursorMovedI" }, {
         callback = function(ev)
             local tick = api.nvim_buf_get_changedtick(ev.buf)
-            if ev.event == "InsertEnter" or tick == self.state.last_tick then
+            local state = self:buf_state(ev.buf)
+            if ev.event == "InsertEnter" or tick == state.last_tick then
                 local row, col = unpack(api.nvim_win_get_cursor(0))
-                self.state.last_row, self.state.last_col = row - 1, col
+                state.last_row, state.last_col = row - 1, col
             end
-            self.state.last_tick = tick
+            state.last_tick = tick
         end,
     })
 
     api.nvim_create_autocmd("TextChangedI", {
         callback = function(ev) self:on_key(ev) end,
+    })
+
+    api.nvim_create_autocmd("BufDelete", {
+        callback = function(ev) self.state[ev.buf] = nil end,
     })
 end
 
