@@ -68,17 +68,46 @@ if ok then
     map({ "n", "x", "o" }, "T", repeatable_move.builtin_T_expr, { expr = true })
 
     local cycles = {
-        a = { "next", "prev", "first", "last" },
-        b = { "bnext", "bprev", "bfirst", "blast" },
-        l = { "lnext", "lprev", "lfirst", "llast" },
-        q = { "cnext", "cprev", "cfirst", "clast" },
+        a = {
+            cmd = "argument",
+            info = function()
+                return vim.fn.argidx() + 1, vim.fn.argc()
+            end,
+        },
+        b = {
+            cmd = "buffer",
+            info = function()
+                local current = api.nvim_get_current_buf()
+                local bufs = vim.iter(api.nvim_list_bufs())
+                    :filter(function(buf) return vim.bo[buf].buflisted end)
+                    :totable()
+                local i = vim.iter(ipairs(bufs))
+                    :find(function(_, buf) return buf == current end)
+                return i, #bufs
+            end,
+        },
+        l = {
+            cmd = "ll",
+            info = function()
+                local list = vim.fn.getloclist(0, { idx = 0, size = 0 })
+                return list.idx, list.size
+            end,
+        },
+        q = {
+            cmd = "cc",
+            info = function()
+                local list = vim.fn.getqflist({ idx = 0, size = 0 })
+                return list.idx, list.size
+            end,
+        },
     }
 
     for key, cycle in pairs(cycles) do
-        local next, prev, first, last = unpack(cycle)
         local move_fn = repeatable_move.make_repeatable_move(function(opts)
-            local ok = pcall(vim.cmd, opts.forward and next or prev)
-            if not ok then pcall(vim.cmd, opts.forward and first or last) end
+            local i, size = cycle.info()
+            local count = vim.v.count1 * (opts.forward and 1 or -1)
+            local new_i = (i + count - 1) % size + 1
+            pcall(vim.cmd, new_i .. cycle.cmd)
         end)
 
         map("n", "]" .. key, function() move_fn({ forward = true }) end)
