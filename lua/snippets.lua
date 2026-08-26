@@ -194,7 +194,9 @@ function Snippets:restore(buf, action)
     frame.deleted = api.nvim_buf_get_text(buf, row1, col1, row2, col2, {})
     api.nvim_buf_set_text(buf, row1, col1, row2, col2, deleted)
 
-    api.nvim_win_set_cursor(0, { row1 + #deleted, col1 + #deleted[#deleted] })
+    local crow, ccol = row1 + #deleted - 1, col1 + #deleted[#deleted] 
+    api.nvim_win_set_cursor(0, { crow + 1, ccol })
+    state.last_row, state.last_col = crow, ccol
 
     return true
 end
