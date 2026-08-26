@@ -27,9 +27,9 @@ local ok, comment = pcall(require, "Comment")
 if ok then comment.setup() end
 
 local ok, substitute = pcall(require, "substitute")
-substitute.setup()
-
 if ok then
+    substitute.setup()
+
     map("n", "s", substitute.operator, { noremap = true })
     map("n", "ss", substitute.line, { noremap = true })
     map("n", "S", substitute.eol, { noremap = true })

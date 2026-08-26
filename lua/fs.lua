@@ -41,7 +41,7 @@ if ok then
     map("x", "<Leader>/", fzf_lua.grep_visual)
     map("n", "<Leader>H", fzf_lua.helptags)
     map("n", "<Leader>u", fzf_lua.undotree)
-        
+
     map("n", "<Leader>cd", function()
         fzf_lua.fzf_exec("fd --type d --hidden --exclude .git", {
             actions = {

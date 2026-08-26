@@ -65,7 +65,7 @@ end
 
 local function runCmd(cmd, ...)
     local res = vim.system({ "bash", "-c", cmd:format(...) }):wait()
-    return res and res.stdout:gsub("\n$", "")
+    return res.stdout and res.stdout:gsub("\n$", "")
 end
 
 local function runJsonCmd(cmd, ...)
@@ -106,25 +106,25 @@ function Workflows.run(workflow)
 end
 
 function Workflows.select()
-        local workflows = runJsonCmd("gh workflow list --json id,name,state")
-        if not workflows then return end
+    local workflows = runJsonCmd("gh workflow list --json id,name,state")
+    if not workflows then return end
 
-        local padding = vim.iter(workflows)
-            :map(function(workflow) return #workflow.name end)
-            :fold(0, function(acc, len) return math.max(acc, len) end)
-        local format = string.format("%%-%ds  %%s  %%s", padding)
+    local padding = vim.iter(workflows)
+        :map(function(workflow) return #workflow.name end)
+        :fold(0, function(acc, len) return math.max(acc, len) end)
+    local format = string.format("%%-%ds  %%s  %%s", padding)
 
-        local path = vim.fn.stdpath("state") .. "/gh_workflow_defaults.json"
-        local ok, err = Workflows.defaults:open(path)
-        if not ok then error(err) end
+    local path = vim.fn.stdpath("state") .. "/gh_workflow_defaults.json"
+    local ok, err = Workflows.defaults:open(path)
+    if not ok then error(err) end
 
-        vim.ui.select(workflows, {
-            prompt = "Select workflow:",
-            format_item = function(item)
-                return string.format(format, item.name, item.state, item.id)
-            end,
-        }, coroutine.wrap(Workflows.run))
-    end
+    vim.ui.select(workflows, {
+        prompt = "Select workflow:",
+        format_item = function(item)
+            return string.format(format, item.name, item.state, item.id)
+        end,
+    }, coroutine.wrap(Workflows.run))
+end
 
 function Workflows.setup()
     map("n", "<Leader>gw", Workflows.select)

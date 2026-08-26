@@ -75,7 +75,7 @@ end
 
 function Snippets:build(lang)
     if not self.rules[lang] then return nil end
-    if not self.langs[lang] then self:lang(lang) end
+    if not self.langs[lang] then self:lang(lang, {}) end
 
     -- Create set of alternations per context
     local at_cursor = lpeg.Cmt(lpeg.Carg(1), function(_, pos, col) return pos == col + 1 end)
@@ -194,7 +194,7 @@ function Snippets:restore(buf, action)
     frame.deleted = api.nvim_buf_get_text(buf, row1, col1, row2, col2, {})
     api.nvim_buf_set_text(buf, row1, col1, row2, col2, deleted)
 
-    local crow, ccol = row1 + #deleted - 1, col1 + #deleted[#deleted] 
+    local crow, ccol = row1 + #deleted - 1, (#deleted == 1 and col1 or 0) + #deleted[#deleted]
     api.nvim_win_set_cursor(0, { crow + 1, ccol })
     state.last_row, state.last_col = crow, ccol
 
@@ -257,6 +257,16 @@ function Snippets:setup()
             vim.snippet.jump(1)
         else
             api.nvim_feedkeys(k"<Tab>", "n", false)
+        end
+    end)
+
+    map({ "i", "s" }, "<S-Tab>", function()
+        if vim.snippet.active({ direction = -1 }) then
+            local buf = api.nvim_get_current_buf()
+            self:buf_state(buf).expanded = false
+            vim.snippet.jump(-1)
+        else
+            api.nvim_feedkeys(k"<S-Tab>", "n", false)
         end
     end)
 

@@ -13,20 +13,20 @@ if ok then
     map("n", "<Leader>gl", fzf_lua.git_commits)
 end
 
-ok, gitsigns = pcall(require, "gitsigns")
+local ok, gitsigns = pcall(require, "gitsigns")
 if ok then
     gitsigns.setup()
     map({"o", "x"}, "ah", "<Cmd>Gitsigns select_hunk<CR>")
 
     local goto_hunk = function(opts)
         if vim.wo.diff then
-            vim.cmd.normal({ opts.forward and "]h" or "[h", bang = true })
+            vim.cmd.normal({ opts.forward and "]c" or "[c", bang = true })
         else
             gitsigns.nav_hunk(opts.forward and "next" or "prev", { navigation_message = false })
         end
     end
 
-    ok, repeatable_move = pcall(require, "nvim-treesitter-textobjects.repeatable_move")
+    local ok, repeatable_move = pcall(require, "nvim-treesitter-textobjects.repeatable_move")
     if ok then goto_hunk = repeatable_move.make_repeatable_move(goto_hunk) end
 
     map("n", "]h", function() goto_hunk({ forward = true }) end)
@@ -52,7 +52,7 @@ if ok then
     map("n", "<Leader>hQ", function() gitsigns.setqflist("all") end)
 end
 
-ok, diffview = pcall(require, "diffview")
+local ok, diffview = pcall(require, "diffview")
 if ok then diffview.setup() end
 
 local ok, neogit = pcall(require, "neogit")

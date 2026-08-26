@@ -46,13 +46,6 @@ api.nvim_create_autocmd("CmdwinEnter", {
     end,
 })
 
-api.nvim_create_autocmd("FileType", {
-    pattern = { "help", "pager" },
-    callback = function(ev)
-        map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
-    end,
-})
-
 local Statuscolumn = require("statuscolumn")
 
 api.nvim_create_autocmd("FileType", {

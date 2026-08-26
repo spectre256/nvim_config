@@ -40,7 +40,7 @@ api.nvim_create_autocmd("LspAttach", {
         map("n", "<Leader>lf", function() vim.lsp.buf.format({ async = true }) end, buf_opts)
         map("n", "<Leader>ll", vim.diagnostic.open_float, buf_opts)
 
-        ok, fzf_lua = pcall(require, "fzf-lua")
+        local ok, fzf_lua = pcall(require, "fzf-lua")
         if ok then
             map("n", "gr", fzf_lua.lsp_references, buf_opts)
             map("n", "<Leader>ld", fzf_lua.diagnostics_document, buf_opts)
@@ -51,13 +51,6 @@ api.nvim_create_autocmd("LspAttach", {
         end
     end,
 })
-
-local exclude = { "gitlab_duo" }
-for _, config in ipairs(vim.lsp.get_configs()) do
-    if not vim.tbl_contains(exclude, config.name) then
-        vim.lsp.enable(config.name)
-    end
-end
 
 vim.lsp.config("lua_ls", {
     on_init = function(client)
@@ -93,3 +86,9 @@ vim.lsp.config("lua_ls", {
     },
 })
 
+local exclude = { "gitlab_duo" }
+for _, config in ipairs(vim.lsp.get_configs()) do
+    if not vim.tbl_contains(exclude, config.name) then
+        vim.lsp.enable(config.name)
+    end
+end
