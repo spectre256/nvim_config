@@ -66,53 +66,55 @@ if ok then
     map({ "n", "x", "o" }, "F", repeatable_move.builtin_F_expr, { expr = true })
     map({ "n", "x", "o" }, "t", repeatable_move.builtin_t_expr, { expr = true })
     map({ "n", "x", "o" }, "T", repeatable_move.builtin_T_expr, { expr = true })
+end
 
-    local cycles = {
-        a = {
-            cmd = "argument",
-            info = function()
-                return vim.fn.argidx() + 1, vim.fn.argc()
-            end,
-        },
-        b = {
-            cmd = "buffer",
-            info = function()
-                local current = api.nvim_get_current_buf()
-                local bufs = vim.iter(api.nvim_list_bufs())
-                    :filter(function(buf) return vim.bo[buf].buflisted end)
-                    :totable()
-                local i = vim.iter(ipairs(bufs))
-                    :find(function(_, buf) return buf == current end)
-                return i, #bufs
-            end,
-        },
-        l = {
-            cmd = "ll",
-            info = function()
-                local list = vim.fn.getloclist(0, { idx = 0, size = 0 })
-                return list.idx, list.size
-            end,
-        },
-        q = {
-            cmd = "cc",
-            info = function()
-                local list = vim.fn.getqflist({ idx = 0, size = 0 })
-                return list.idx, list.size
-            end,
-        },
-    }
+local cycles = {
+    a = {
+        cmd = "argument",
+        info = function()
+            return vim.fn.argidx() + 1, vim.fn.argc()
+        end,
+    },
+    b = {
+        cmd = "buffer",
+        info = function()
+            local current = api.nvim_get_current_buf()
+            local bufs = vim.iter(api.nvim_list_bufs())
+                :filter(function(buf) return vim.bo[buf].buflisted end)
+                :totable()
+            local i = vim.iter(ipairs(bufs))
+                :find(function(_, buf) return buf == current end)
+            return i, #bufs
+        end,
+    },
+    l = {
+        cmd = "ll",
+        info = function()
+            local list = vim.fn.getloclist(0, { idx = 0, size = 0 })
+            return list.idx, list.size
+        end,
+    },
+    q = {
+        cmd = "cc",
+        info = function()
+            local list = vim.fn.getqflist({ idx = 0, size = 0 })
+            return list.idx, list.size
+        end,
+    },
+}
 
-    for key, cycle in pairs(cycles) do
-        local move_fn = repeatable_move.make_repeatable_move(function(opts)
-            local i, size = cycle.info()
-            local count = vim.v.count1 * (opts.forward and 1 or -1)
-            local new_i = (i + count - 1) % size + 1
-            pcall(vim.cmd, new_i .. cycle.cmd)
-        end)
+local function move_fn(opts)
+    local i, size = opts.cycle.info()
+    local count = vim.v.count1 * (opts.forward and 1 or -1)
+    local new_i = (i + count - 1) % size + 1
+    pcall(vim.cmd, new_i .. opts.cycle.cmd)
+end
 
-        map("n", "]" .. key, function() move_fn({ forward = true }) end)
-        map("n", "[" .. key, function() move_fn({ forward = false }) end)
-    end
+if ok then move_fn = repeatable_move.make_repeatable_move(move_fn) end
+
+for key, cycle in pairs(cycles) do
+    map("n", "]" .. key, function() move_fn({ forward = true, cycle = cycle }) end)
+    map("n", "[" .. key, function() move_fn({ forward = false, cycle = cycle }) end)
 end
 
 local ok, treesj = pcall(require, "treesj")
