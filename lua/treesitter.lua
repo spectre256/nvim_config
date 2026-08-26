@@ -66,6 +66,24 @@ if ok then
     map({ "n", "x", "o" }, "F", repeatable_move.builtin_F_expr, { expr = true })
     map({ "n", "x", "o" }, "t", repeatable_move.builtin_t_expr, { expr = true })
     map({ "n", "x", "o" }, "T", repeatable_move.builtin_T_expr, { expr = true })
+
+    local cycles = {
+        a = { "next", "prev", "first", "last" },
+        b = { "bnext", "bprev", "bfirst", "blast" },
+        l = { "lnext", "lprev", "lfirst", "llast" },
+        q = { "cnext", "cprev", "cfirst", "clast" },
+    }
+
+    for key, cycle in pairs(cycles) do
+        local next, prev, first, last = unpack(cycle)
+        local move_fn = repeatable_move.make_repeatable_move(function(opts)
+            local ok = pcall(vim.cmd, opts.forward and next or prev)
+            if not ok then pcall(vim.cmd, opts.forward and first or last) end
+        end)
+
+        map("n", "]" .. key, function() move_fn({ forward = true }) end)
+        map("n", "[" .. key, function() move_fn({ forward = false }) end)
+    end
 end
 
 local ok, treesj = pcall(require, "treesj")

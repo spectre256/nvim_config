@@ -39,6 +39,7 @@ if ok then
     map("n", "<Leader>b", fzf_lua.buffers)
     map("n", "<Leader>/", fzf_lua.live_grep_native)
     map("x", "<Leader>/", fzf_lua.grep_visual)
+    map("n", "<Leader>?", fzf_lua.resume)
     map("n", "<Leader>H", fzf_lua.helptags)
     map("n", "<Leader>M", fzf_lua.manpages)
     map("n", "<Leader>u", fzf_lua.undotree)

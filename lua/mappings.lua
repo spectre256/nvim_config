@@ -41,26 +41,36 @@ map("n", "<C-S-h>", "<Cmd>leftabove vsplit<CR>")
 map("n", "<C-S-j>", "<Cmd>rightbelow split<CR>")
 map("n", "<C-S-k>", "<Cmd>leftabove split<CR>")
 map("n", "<C-S-l>", "<Cmd>rightbelow vsplit<CR>")
+map("n", "<C-b>b", "<C-^>")
 map("n", "<C-b><C-b>", "<C-^>")
 map("n", "<C-b>n", "<Cmd>new<CR>")
+map("n", "<C-b><C-n>", "<Cmd>new<CR>")
+-- Vim doesn't like it when I map <C-c> here
 map("n", "<C-b>c", "<Cmd>bdelete<CR>")
 map("n", "<C-b>w", "<Cmd>bwipeout<CR>")
-map("n", "<C-b>o", function()
+map("n", "<C-b><C-w>", "<Cmd>bwipeout<CR>")
+
+local function only_buf()
     local current = api.nvim_get_current_buf()
     for _, buf in ipairs(api.nvim_list_bufs()) do
         if buf ~= current and vim.bo[buf].buflisted then
             pcall(api.nvim_buf_delete, buf, {})
         end
     end
-end)
+end
+map("n", "<C-b>o", only_buf)
+map("n", "<C-b><C-o>", only_buf)
+
 map("i", "<C-Space>", "<C-x><C-o>")
-map("n", "<C-Q>", function()
+
+vim.cmd.packadd("cfilter")
+map("n", "<C-q>", function()
     local is_open = vim.fn.getqflist({ winid = 0 }).winid ~= 0
     vim.cmd(is_open and "cclose" or "copen")
 end)
 
 api.nvim_create_autocmd("FileType", {
-    pattern = { "help", "man", "pager" },
+    pattern = { "help", "man", "pager", "qf" },
     callback = function(ev)
         map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
         map("n", "q", "<C-w>c", { buf = ev.buf })
