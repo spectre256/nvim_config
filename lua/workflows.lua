@@ -101,6 +101,7 @@ function Workflows.run(workflow)
     local ok, err = Workflows.defaults:save()
     if not ok then error(err) end
 
+    -- String interpolation so bash variable expansion works
     local cmd = string.format("gh workflow run '%s' --ref %s%s", workflow.name, branch, inputs_arg)
     vim.system({ "bash", "-c", cmd })
 end

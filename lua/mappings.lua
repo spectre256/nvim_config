@@ -54,10 +54,15 @@ map("n", "<C-b>o", function()
     end
 end)
 map("i", "<C-Space>", "<C-x><C-o>")
+map("n", "<C-Q>", function()
+    local is_open = vim.fn.getqflist({ winid = 0 }).winid ~= 0
+    vim.cmd(is_open and "cclose" or "copen")
+end)
 
 api.nvim_create_autocmd("FileType", {
-    pattern = { "help", "pager" },
+    pattern = { "help", "man", "pager" },
     callback = function(ev)
         map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
+        map("n", "q", "<C-w>c", { buf = ev.buf })
     end,
 })
