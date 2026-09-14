@@ -76,7 +76,6 @@ local cycles = {
         end,
     },
     b = {
-        cmd = "buffer",
         info = function()
             local current = api.nvim_get_current_buf()
             local bufs = vim.iter(api.nvim_list_bufs())
@@ -84,7 +83,7 @@ local cycles = {
                 :totable()
             local i = vim.iter(ipairs(bufs))
                 :find(function(_, buf) return buf == current end)
-            return i, #bufs
+            return i or 0, #bufs, function(new_i) api.nvim_set_current_buf(bufs[new_i]) end
         end,
     },
     l = {
@@ -104,10 +103,15 @@ local cycles = {
 }
 
 local function move_fn(opts)
-    local i, size = opts.cycle.info()
+    local i, size, cmd = opts.cycle.info()
+    if size == 0 then return end
     local count = vim.v.count1 * (opts.forward and 1 or -1)
     local new_i = (i + count - 1) % size + 1
-    pcall(vim.cmd, new_i .. opts.cycle.cmd)
+    if cmd then
+        pcall(cmd)
+    else
+        pcall(vim.cmd, new_i .. opts.cycle.cmd)
+    end
 end
 
 if ok then move_fn = repeatable_move.make_repeatable_move(move_fn) end

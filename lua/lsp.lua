@@ -39,7 +39,7 @@ api.nvim_create_autocmd("LspAttach", {
         map("n", "<Leader>la", vim.lsp.buf.code_action, buf_opts)
         map("n", "<Leader>lf", function() vim.lsp.buf.format({ async = true }) end, buf_opts)
         map("n", "<Leader>ll", vim.diagnostic.open_float, buf_opts)
-        map("n", "<Leader>lq", vim.diagnostic.set_qflist, buf_opts)
+        map("n", "<Leader>lq", vim.diagnostic.setqflist, buf_opts)
 
         local ok, fzf_lua = pcall(require, "fzf-lua")
         if ok then
@@ -51,6 +51,10 @@ api.nvim_create_autocmd("LspAttach", {
             map("n", "<Leader>li", fzf_lua.lsp_implementations, buf_opts)
         end
     end,
+})
+
+vim.lsp.config("clangd", {
+    cmd = { "clangd", "--experimental-modules-support" },
 })
 
 vim.lsp.config("lua_ls", {
