@@ -64,7 +64,12 @@ function Workflows.defaults:save()
 end
 
 local function runCmd(cmd, ...)
-    local res = vim.system({ "bash", "-c", cmd:format(...) }):wait()
+    local final_cmd = "set -euo pipefail; " .. cmd:format(...)
+    local res = vim.system({ "bash", "-c", final_cmd }):wait()
+    if res.code ~= 0 then
+        error(("Command '%s' failed with error (%d) %s"):format(final_cmd, res.code, res.stderr))
+    end
+
     return res.stdout and res.stdout:gsub("\n$", "")
 end
 
@@ -78,7 +83,7 @@ function Workflows.run(workflow)
 
     local repo = runCmd("git config --get remote.origin.url || git rev-parse --show-toplevel")
     local branch = runCmd("git branch --show-current")
-    local inputs = runJsonCmd("gh workflow view '%s' --yaml | yq '.on.workflow_dispatch.inputs'", workflow.name) or {}
+    local inputs = runJsonCmd("gh workflow view '%s' --ref '%s' --yaml | yq '.on.workflow_dispatch.inputs'", workflow.name, branch) or {}
 
     local inputs_arg = vim.iter(pairs(inputs))
         :map(function(name, opts)
