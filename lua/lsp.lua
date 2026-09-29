@@ -54,7 +54,7 @@ api.nvim_create_autocmd("LspAttach", {
 })
 
 vim.lsp.config("clangd", {
-    cmd = { "clangd", "--experimental-modules-support" },
+    cmd = { "clangd", "--experimental-modules-support", "--header-insertion=never" },
 })
 
 vim.lsp.config("lua_ls", {

@@ -64,7 +64,7 @@ map("n", "<C-b><C-o>", only_buf)
 map("i", "<C-Space>", "<C-x><C-o>")
 
 vim.cmd.packadd("cfilter")
-map("n", "<C-q>", function()
+map("n", "<Leader>cc", function()
     local is_open = vim.fn.getqflist({ winid = 0 }).winid ~= 0
     vim.cmd(is_open and "cclose" or "copen")
 end)
