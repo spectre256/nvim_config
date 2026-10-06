@@ -13,7 +13,11 @@ vim.diagnostic.config({
             [sev.INFO]  = "⊚",
         },
     },
-    virtual_text = true,
+    virtual_text = {
+        format = function(diagnostic)
+            return diagnostic.message:match("[^\n]*")
+        end,
+    },
     update_in_insert = false,
 })
 
