@@ -30,10 +30,8 @@ if ok then
     map({ "x", "o" }, "ai", function() sel.select_textobject("@conditional.outer", "textobjects") end)
     map({ "x", "o" }, "ii", function() sel.select_textobject("@conditional.inner", "textobjects") end)
     map({ "x", "o" }, "gb", function() sel.select_textobject("@comment.outer", "textobjects") end)
-    map({ "x", "o" }, "al", function() sel.select_textobject("@assignment.lhs", "textobjects") end)
+    map({ "x", "o" }, "aR", function() sel.select_textobject("@assignment.lhs", "textobjects") end)
     map({ "x", "o" }, "ar", function() sel.select_textobject("@assignment.rhs", "textobjects") end)
-    map("o", "ae", "<Cmd>keepjumps normal! mzggVG<CR><Cmd>keepjumps silent! normal! `zzz<CR>", { silent = true })
-    map("x", "ae", ":<C-u>keepjumps normal! mzggVG<CR>", { silent = true })
 end
 
 local ok, swap = pcall(require, "nvim-treesitter-textobjects.swap")
