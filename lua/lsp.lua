@@ -91,9 +91,12 @@ vim.lsp.config("lua_ls", {
     },
 })
 
-local exclude = { "gitlab_duo" }
-for _, config in ipairs(vim.lsp.get_configs()) do
-    if not vim.tbl_contains(exclude, config.name) then
-        vim.lsp.enable(config.name)
-    end
-end
+local exclude = { gitlab_duo = true }
+vim.schedule(function()
+    local names = vim
+        :iter(vim.lsp.get_configs())
+        :map(function(config) return config.name end)
+        :filter(function(name) return not exclude[name] end)
+
+    vim.lsp.enable(names)
+end)
