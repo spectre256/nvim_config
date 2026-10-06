@@ -5,13 +5,13 @@ vim.pack.add({
     "https://github.com/windwp/nvim-autopairs",
     "https://github.com/numToStr/Comment.nvim",
     "https://github.com/gbprod/substitute.nvim",
+    "https://codeberg.org/andyg/leap.nvim",
 })
 
 local ok, surround = pcall(require, "nvim-surround")
 if ok then
     surround.setup()
 
-    -- TODO: Can I make a "surround with conditional" keybind? then yS would put it on a newline too? that'd be so cool!
     map("n", "yH", "<Plug>(nvim-surround-normal)^")
     map("n", "yL", "<Plug>(nvim-surround-normal)$")
 end
@@ -48,4 +48,12 @@ local ok, range = pcall(require, "substitute.range")
 if ok then
     map("n", "<Leader>r",  range.operator, { noremap = true })
     map("n", "<Leader>rr", range.word, { noremap = true })
+end
+
+local ok, leap = pcall(require, "leap")
+map({ "n", "x", "o" }, "<CR>", "<Plug>(leap)")
+if ok then
+    map({ "n", "x", "o" }, "g<CR>", leap.visit)
+    map({ "n", "x" }, "g/", function() leap.visit({ jumper = "/" }) end)
+    map({ "n", "x" }, "g?", function() leap.visit({ jumper = "?" }) end)
 end
