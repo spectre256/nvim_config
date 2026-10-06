@@ -24,6 +24,7 @@ if ok then
             ["@keyword.conditional"] = { italic = true },
             ["@keyword.conditional.ternary"] = { italic = true },
             ["@markup.italic"] = { italic = true },
+            ["@markup.strong"] = { bold = true },
             CurSearch = { fg = "base", bg = "leaf", inherit = false },
             Search = { fg = "text", bg = "leaf", blend = 20, inherit = false },
             MatchParen = { link = "Search" },
@@ -35,6 +36,7 @@ if ok then
             ModifiedSel = { fg = "pine", bg = "base" },
             Readonly = { fg = "love", bg = "surface" },
             ReadonlySel = { fg = "love", bg = "base" },
+            Macro = { fg = "love", bg = "love", blend = 10, bold = true },
             TabLine = { link = "TabLineFill" },
             TabLineSel = { fg = "text", bg = "base" },
             TabLineSep = { fg = "base", bg = "surface" },
@@ -57,6 +59,6 @@ end
 
 api.nvim_create_autocmd("TextYankPost", {
     callback = function()
-        vim.hl.on_yank({ higroup = "Search", timeout = 500 })
+        vim.hl.hl_op({ higroup = "Search", timeout = 500 })
     end,
 })

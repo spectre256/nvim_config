@@ -10,7 +10,8 @@ function Statusline.setup()
         "%#Modified#%{&modified ? '●' : ''}",
         "%#Readonly#%{&readonly ? '⊘' : ''}",
         "%#Statusline#%=",
-        "%l∶%c ",
+        "%#Macro#%{reg_recording() != '' ? ' @' . reg_recording() . ' ' : ''}",
+        "%#Statusline# %l∶%c ",
     })
 end
 
