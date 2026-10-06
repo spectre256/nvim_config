@@ -19,8 +19,6 @@ vim.diagnostic.config({
 
 api.nvim_create_autocmd("LspAttach", {
     callback = function(ev)
-        -- vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
-
         local buf_opts = { buf = ev.buf }
 
         local diagnostic_jump = function(opts)
@@ -40,6 +38,9 @@ api.nvim_create_autocmd("LspAttach", {
         map("n", "<Leader>lf", function() vim.lsp.buf.format({ async = true }) end, buf_opts)
         map("n", "<Leader>ll", vim.diagnostic.open_float, buf_opts)
         map("n", "<Leader>lq", vim.diagnostic.setqflist, buf_opts)
+        map("n", "<Leader>lh", function()
+            vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
+        end, buf_opts)
 
         local ok, fzf_lua = pcall(require, "fzf-lua")
         if ok then
@@ -94,9 +95,10 @@ vim.lsp.config("lua_ls", {
 local exclude = { gitlab_duo = true }
 vim.schedule(function()
     local names = vim
-        :iter(vim.lsp.get_configs())
+        .iter(vim.lsp.get_configs())
         :map(function(config) return config.name end)
         :filter(function(name) return not exclude[name] end)
+        :totable()
 
     vim.lsp.enable(names)
 end)
