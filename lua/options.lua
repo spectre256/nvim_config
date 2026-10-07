@@ -22,7 +22,6 @@ opt.cmdwinheight = 1
 opt.pumheight = 12
 
 opt.showmode = false
-opt.showcmdloc = "statusline"
 opt.shortmess = "aoOstTWAcCqFS"
 
 opt.list = true

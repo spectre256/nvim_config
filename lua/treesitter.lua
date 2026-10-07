@@ -32,6 +32,8 @@ if ok then
     map({ "x", "o" }, "gb", function() sel.select_textobject("@comment.outer", "textobjects") end)
     map({ "x", "o" }, "aR", function() sel.select_textobject("@assignment.lhs", "textobjects") end)
     map({ "x", "o" }, "ar", function() sel.select_textobject("@assignment.rhs", "textobjects") end)
+    map({ "x", "o" }, "as", function() sel.select_textobject("@local.scope", "locals") end)
+    map({ "x", "o" }, "is", function() sel.select_textobject("@block.inner", "textobjects") end)
 end
 
 local ok, swap = pcall(require, "nvim-treesitter-textobjects.swap")

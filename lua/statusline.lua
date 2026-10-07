@@ -6,6 +6,7 @@ local Statusline = {}
 function Statusline.setup()
     vim.g.qf_disable_statusline = true
     opt.laststatus = 3
+    opt.showcmdloc = "statusline"
     opt.statusline = table.concat({
         "%{%v:lua.require('statusline').render_mode()%}",
         "%#Statusline# %<%f ",

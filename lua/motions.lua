@@ -51,9 +51,9 @@ if ok then
 end
 
 local ok, leap = pcall(require, "leap")
-map({ "n", "x", "o" }, "<CR>", "<Plug>(leap)")
+map({ "n", "x", "o" }, "\\", "<Plug>(leap)")
 if ok then
-    map({ "n", "x", "o" }, "g<CR>", leap.visit)
+    map({ "n", "x", "o" }, "g\\", leap.visit)
     map({ "n", "x" }, "g/", function() leap.visit({ jumper = "/" }) end)
     map({ "n", "x" }, "g?", function() leap.visit({ jumper = "?" }) end)
 end
