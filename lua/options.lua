@@ -29,7 +29,6 @@ opt.list = true
 opt.listchars = {
     tab = "⇥ ",
     trail = "⋅",
-    leadmultispace = "⎸   ",
 }
 opt.fillchars = {
     fold = " ",
@@ -88,4 +87,31 @@ api.nvim_create_autocmd({ "CmdlineEnter", "CmdlineLeave", "CmdwinEnter", "Cmdwin
     callback = function(ev)
         opt.hlsearch = ev.event == "CmdlineEnter" or ev.event == "CmdwinEnter"
     end,
+})
+
+-- Update leadmultispace based on shiftwidth/tabstop
+local function update_leadmultispace(ev)
+    -- Need a real bufnr for the loop's check
+    local buf = ev.buf == 0 and api.nvim_get_current_buf() or ev.buf
+    local shiftwidth = vim.bo[buf].shiftwidth > 0
+        and vim.bo[buf].shiftwidth
+        or vim.bo[buf].tabstop
+
+    for _, win in ipairs(api.nvim_list_wins()) do
+        if api.nvim_win_get_buf(win) == buf then
+            api.nvim_win_call(win, function()
+                vim.opt_local.listchars:append({
+                    leadmultispace = "⎸" .. (" "):rep(shiftwidth - 1),
+                })
+            end)
+        end
+    end
+end
+
+api.nvim_create_autocmd("OptionSet", {
+    pattern = { "shiftwidth", "tabstop" },
+    callback = update_leadmultispace,
+})
+api.nvim_create_autocmd("BufWinEnter", {
+    callback = update_leadmultispace,
 })
