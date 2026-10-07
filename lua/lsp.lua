@@ -15,7 +15,7 @@ vim.diagnostic.config({
     },
     virtual_text = {
         format = function(diagnostic)
-            return diagnostic.message:match("[^\n]*")
+            return diagnostic.message:match("[^\n]*"):gsub("%.$", " ")
         end,
     },
     update_in_insert = false,
