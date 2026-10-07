@@ -158,9 +158,9 @@ map({ "n", "x" }, "<Leader>mg", function()
     return "<Esc>g@"
 end, { expr = true })
 
-local function align(opts)
+local function align(spaces)
     return function()
-        ---@type [vim.api.keyset.get_extmark_item, integer, integer][]
+        ---@type [vim.api.keyset.get_extmark_item, integer, integer, integer, integer][]
         local mark_cols = vim
             .iter(api.nvim_buf_get_extmarks(0, ns, 0, -1))
             :map(function(mark)
@@ -170,12 +170,13 @@ local function align(opts)
                 return mark, left, right
             end)
             :filter(function(_, left, right)
-                return left:match("%S+$") or right:match("^%S+")
+                -- Only match cursors in words
+                return left:match("%w+$") or right:match("^%w+")
             end)
             :map(function(mark, left, right)
-                local left_col = mark[3] - #left:match("%S*$")
-                local right_col = mark[3] + #right:match("^%S*")
-                return mark, left_col, right_col
+                local left_col, left_inner_col = mark[3] - #left:match("%s*%w*$"), mark[3] - #left:match("%w*$")
+                local right_col, right_inner_col = mark[3] + #right:match("^%w*%s*"), mark[3] + #right:match("^%w*")
+                return mark, left_col, right_col, left_inner_col, right_inner_col
             end)
             :totable()
 
@@ -183,43 +184,35 @@ local function align(opts)
         local maxes = vim
             .iter(mark_cols)
             :fold({ 0, 0 }, function(acc, mark_col)
-                local _, left_col, right_col = unpack(mark_col)
+                local _, left_col, _, left_inner_col, right_inner_col = unpack(mark_col)
                 local left_max = acc[1] > left_col and acc[1] or left_col
-                local right_max = acc[2] > right_col and acc[2] or right_col
-                return { left_max, right_max }
+                local width = right_inner_col - left_inner_col
+                local max_width = acc[2] > width and acc[2] or width
+                return { left_max, max_width }
             end)
 
         for _, mark_col in ipairs(mark_cols) do
-            local mark, left_col, right_col = unpack(mark_col)
-            local left_max, right_max = unpack(maxes)
-            local left_spaces, right_spaces = opts.spaces(left_col, left_max, right_col, right_max)
+            local mark, left_col, right_col, left_inner_col, right_inner_col = unpack(mark_col)
+            local left_max, max_width = unpack(maxes)
+            local width = right_inner_col - left_inner_col
+            local left_spaces, right_spaces = spaces(left_col, left_max, width, max_width)
 
-            local row = mark[2]
-            if opts.right then api.nvim_buf_set_text(0, row, right_col, row, right_col, { (" "):rep(right_spaces) }) end
-            if opts.left then api.nvim_buf_set_text(0, row, left_col, row, left_col, { (" "):rep(left_spaces) }) end
+            local _, row = unpack(mark)
+            api.nvim_buf_set_text(0, row, right_inner_col, row, right_col, { (" "):rep(right_spaces) })
+            api.nvim_buf_set_text(0, row, left_col, row, left_inner_col, { (" "):rep(left_spaces) })
         end
     end
 end
 
-map("n", "<Leader>m<", align({
-    left = true,
-    spaces = function(left, left_max)
-        return left_max - left
-    end,
-}), { desc = "Left align all multicursors by adding or removing whitespace" })
+map("n", "<Leader>m<", align(function(left, left_max)
+    return left_max - left + 1, 1
+end), { desc = "Left align all multicursors by adding or removing whitespace" })
 
-map("n", "<Leader>m>", align({
-    left = true,
-    spaces = function(_, _, right, right_max)
-        return right_max - right
-    end,
-}), { desc = "Right align all multicursors by adding or removing whitespace" })
+map("n", "<Leader>m>", align(function(left, left_max, width, max_width)
+    return left_max - left + max_width - width + 1, 1
+end), { desc = "Right align all multicursors by adding or removing whitespace" })
 
-map("n", "<Leader>m=", align({
-    left = true,
-    right = true,
-    spaces = function(left, left_max, right, right_max)
-        local half = (left_max - left + right_max - right) / 2
-        return math.floor(half), math.ceil(half)
-    end,
-}), { desc = "Center all multicursors by adding or removing whitespace" })
+map("n", "<Leader>m=", align(function(left, left_max, width, max_width)
+    local padding = (max_width - width) / 2
+    return left_max - left + math.floor(padding) + 1, math.ceil(padding) + 1
+end), { desc = "Center all multicursors by adding or removing whitespace" })
