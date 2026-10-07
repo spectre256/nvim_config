@@ -1,8 +1,10 @@
+local api = vim.api
 local map = vim.keymap.set
 
 vim.pack.add({
     "https://github.com/ibhagwan/fzf-lua",
     "https://github.com/stevearc/oil.nvim",
+    "https://github.com/stevearc/quicker.nvim",
 })
 
 local ok, oil = pcall(require, "oil")
@@ -22,6 +24,44 @@ map("n", "<Leader>,", function()
         },
     }))
 end)
+
+local ok, quicker = pcall(require, "quicker")
+if ok then
+    quicker.setup({
+        opts = {
+            relativenumber = true,
+        },
+        type_icons = {
+            E = "⦸ ",
+            W = "⊝ ",
+            I = "⊚ ",
+            N = "⊛ ",
+            H = "⊛ ",
+        },
+        borders = {
+            vert          = " ",
+            strong_header = "─",
+            strong_cross  = "─",
+            strong_end    = "─",
+            soft_header   = "─",
+            soft_cross    = "─",
+            soft_end      = "─",
+        },
+    })
+
+    map("n", "<Leader>cc", quicker.toggle)
+    api.nvim_create_autocmd("FileType", {
+        pattern = "qf",
+        callback = function(ev)
+            local buf_opts = { buf = ev.buf }
+            map("n", "zo", quicker.expand, buf_opts)
+            map("n", "zc", quicker.collapse, buf_opts)
+            map("n", "za", quicker.toggle_expand, buf_opts)
+
+            vim.opt_local.list = false
+        end,
+    })
+end
 
 local ok, fzf_lua = pcall(require, "fzf-lua")
 if ok then

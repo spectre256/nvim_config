@@ -67,14 +67,8 @@ map("n", "<C-b><C-o>", only_buf)
 
 map("i", "<C-Space>", "<C-x><C-o>")
 
-vim.cmd.packadd("cfilter")
-map("n", "<Leader>cc", function()
-    local is_open = vim.fn.getqflist({ winid = 0 }).winid ~= 0
-    vim.cmd(is_open and "cclose" or "copen")
-end)
-
 api.nvim_create_autocmd("FileType", {
-    pattern = { "help", "man", "pager", "qf" },
+    pattern = { "help", "man", "pager" },
     callback = function(ev)
         map("n", "<Esc>", "<C-w>c", { buf = ev.buf })
         map("n", "q", "<C-w>c", { buf = ev.buf })

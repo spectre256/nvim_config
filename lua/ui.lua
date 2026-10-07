@@ -30,6 +30,8 @@ if ok then
             MatchParen = { link = "Search" },
             WinSeparator = { fg = "surface", bg = "base", inherit = false },
             VertSplit = { link = "WinSeparator" },
+            QuickFixHeaderHard = { link = "WinSeparator" },
+            QuickFixHeaderSoft = { link = "WinSeparator" },
             Folded = { fg = "highlight_med" },
             NonText = { fg = "highlight_low" },
             Modified = { fg = "pine", bg = "surface" },

@@ -4,6 +4,7 @@ local api = vim.api
 local Statusline = {}
 
 function Statusline.setup()
+    vim.g.qf_disable_statusline = true
     opt.laststatus = 3
     opt.statusline = table.concat({
         "%{%v:lua.require('statusline').render_mode()%}",
@@ -41,7 +42,8 @@ function Statusline.render_cursors()
     local num_cursors = #api.nvim_buf_get_extmarks(0, ns, 0, -1)
     if num_cursors == 0 then return "" end
 
-    local cursors = ({ "·", "꞉", "⁖", "⁘", "⁙" })[num_cursors] or ("%d"):format(num_cursors)
+    local cursors = ({ "·", "꞉", "⁖", "⁘", "⁙" })[num_cursors]
+        or ("%d"):format(num_cursors)
     local following = vim.bo.follow and "⌖" or "○"
     return ("%%#MultiCursors# %s %s "):format(following, cursors)
 end
