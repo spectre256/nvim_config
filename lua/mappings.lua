@@ -1,6 +1,7 @@
 local api = vim.api
 local map = vim.keymap.set
 local k = vim.keycode
+require("utils")
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
@@ -130,7 +131,7 @@ map("n", "zQ", function()
 end, { expr = true })
 
 -- <Leader>mg{motion} - gathers all lines with multicursors, scattering them one by one relative to the cursor according to the provided motion
--- TODO: Do I need this even?
+-- TODO: Not finished. Also, do I even need this?
 map({ "n", "x" }, "<Leader>mg", function()
     local from = api.nvim_buf_get_mark(0, "[")
     local to = api.nvim_buf_get_mark(0, "]")
@@ -158,61 +159,135 @@ map({ "n", "x" }, "<Leader>mg", function()
     return "<Esc>g@"
 end, { expr = true })
 
-local function align(spaces)
+--- @param spaces fun(cell: Cell, max: ColMax): integer, integer
+--- @param buf? integer
+--- @return fun(): nil
+local function align(spaces, buf)
+    buf = buf or 0
+
+    --- @class Cell
+    --- @field mark_id     integer
+    --- @field row         integer
+    --- @field left_inner  integer Left edge excluding spaces.
+    --- @field right_inner integer Right edge excluding spaces.
+    --- @field left_outer  integer Left edge including spaces.
+    --- @field right_outer integer Right edge including spaces.
+    local Cell = {}
+    setmetatable(Cell, Cell)
+    Cell.__index = Cell
+
+    function Cell.new(opts)
+        return setmetatable(opts or {}, Cell)
+    end
+
+    --- @return integer
+    function Cell:width()
+        return self.right_inner - self.left_inner
+    end
+
+    --- @param mark vim.api.keyset.get_extmark_item
+    --- @return Cell | nil
+    function Cell.from_mark(mark)
+        --- @type integer, integer, integer
+        local id, row, col = unpack(mark)
+        local line = api.nvim_buf_get_lines(buf, row, row + 1, false)[1]
+        local left, right = line:sub(1, col), line:sub(col + 1)
+        if not (left:match("%w+$") or right:match("^%w+")) then return nil end
+
+        return Cell.new({
+            mark_id = id,
+            row = row,
+            left_inner = col - #left:match("%S*$"),
+            right_inner = col + #right:match("^%S*"),
+            left_outer = col - #left:match("%s*%S*$"),
+            right_outer = col + #right:match("^%S*%s*"),
+        })
+    end
+
+    --- @return integer
+    function Cell:to_offset()
+        return vim.pos.extmark(buf, self.row, self.left_inner):to_offset()
+    end
+
+    --- @param cells Cell[]
+    --- @return Cell[][]
+    local function group_rows(cells)
+        local rows = {}
+        local row_i = nil
+        local row = {}
+
+        for _, cell in ipairs(cells) do
+            if cell.row ~= row_i then
+                if row_i then table.insert(rows, row) end
+                row_i = cell.row
+                row = {}
+            end
+
+            table.insert(row, cell)
+        end
+
+        if #row > 0 then table.insert(rows, row) end
+
+        return rows
+    end
+
+    --- @class ColMax
+    --- @field left_outer integer
+    --- @field width integer
+
+    --- @param col Cell[]
+    --- @return ColMax
+    local function col_max(col)
+        return vim.iter(col):fold({ left_outer = 0, width = 0 }, function(acc, cell --[[@param cell Cell]])
+            return {
+                left_outer = math.max(acc.left_outer, cell.left_outer),
+                width = math.max(acc.width, cell:width()),
+            }
+        end)
+    end
+
     return function()
-        ---@type [vim.api.keyset.get_extmark_item, integer, integer, integer, integer][]
-        local mark_cols = vim
-            .iter(api.nvim_buf_get_extmarks(0, ns, 0, -1))
-            :map(function(mark)
-                local _, row, col = unpack(mark)
-                local line = api.nvim_buf_get_lines(0, row, row + 1, false)[1]
-                local left, right = line:sub(1, col), line:sub(col + 1)
-                return mark, left, right
-            end)
-            :filter(function(_, left, right)
-                -- Only match cursors in words
-                return left:match("%w+$") or right:match("^%w+")
-            end)
-            :map(function(mark, left, right)
-                local left_col, left_inner_col = mark[3] - #left:match("%s*%w*$"), mark[3] - #left:match("%w*$")
-                local right_col, right_inner_col = mark[3] + #right:match("^%w*%s*"), mark[3] + #right:match("^%w*")
-                return mark, left_col, right_col, left_inner_col, right_inner_col
-            end)
+        --- Column major alignment cells
+        --- @type Cell[][]
+        local cells = vim
+            .iter(api.nvim_buf_get_extmarks(buf, ns, 0, -1))
+            :map(Cell.from_mark)
+            :unique(Cell.to_offset)
+            :apply(group_rows)
+            :apply(table.transpose)
             :totable()
 
-        ---@type [integer, integer]
+        --- @type ColMax[]
         local maxes = vim
-            .iter(mark_cols)
-            :fold({ 0, 0 }, function(acc, mark_col)
-                local _, left_col, _, left_inner_col, right_inner_col = unpack(mark_col)
-                local left_max = acc[1] > left_col and acc[1] or left_col
-                local width = right_inner_col - left_inner_col
-                local max_width = acc[2] > width and acc[2] or width
-                return { left_max, max_width }
-            end)
+            .iter(cells)
+            :map(col_max)
+            :totable()
 
-        for _, mark_col in ipairs(mark_cols) do
-            local mark, left_col, right_col, left_inner_col, right_inner_col = unpack(mark_col)
-            local left_max, max_width = unpack(maxes)
-            local width = right_inner_col - left_inner_col
-            local left_spaces, right_spaces = spaces(left_col, left_max, width, max_width)
+        for col_i = #cells, 1, -1 do
+            local max = maxes[col_i]
+            for _, cell in ipairs(cells[col_i]) do
+                local left_spaces, right_spaces = spaces(cell, max)
 
-            local _, row = unpack(mark)
-            api.nvim_buf_set_text(0, row, right_inner_col, row, right_col, { (" "):rep(right_spaces) })
-            api.nvim_buf_set_text(0, row, left_col, row, left_inner_col, { (" "):rep(left_spaces) })
+                api.nvim_buf_set_text(buf, cell.row, cell.right_inner, cell.row, cell.right_outer, { (" "):rep(right_spaces) })
+                api.nvim_buf_set_text(buf, cell.row, cell.left_outer, cell.row, cell.left_inner, { (" "):rep(left_spaces) })
+            end
         end
     end
 end
 
-map("n", "<Leader>m<", align(function(left, left_max)
-    return left_max - left + 1, 1
+-- testss test test
+-- testssss test test
+-- tests test test
+
+map("n", "<Leader>m<", align(function(cell, max)
+    return max.left_outer - cell.left_outer + 1, 1
 end), { desc = "Left align all multicursors by adding or removing whitespace" })
 
-map("n", "<Leader>m>", align(function(left, left_max, width, max_width)
-    return left_max - left + max_width - width + 1, 1
+map("n", "<Leader>m>", align(function(cell, max)
+    return max.left_outer - cell.left_outer + max.width - cell:width() + 1, 1
 end), { desc = "Right align all multicursors by adding or removing whitespace" })
 
-map("n", "<Leader>m=", align(function(left, left_max, width, max_width)
-    local padding = (max_width - width) / 2
-    return left_max - left + math.floor(padding) + 1, math.ceil(padding) + 1
+map("n", "<Leader>m=", align(function(cell, max)
+    local padding = (max.width - cell:width()) / 2
+    return max.left_outer - cell.left_outer + math.floor(padding) + 1, math.ceil(padding) + 1
 end), { desc = "Center all multicursors by adding or removing whitespace" })
