@@ -25,6 +25,8 @@ if ok then
             ["@keyword.conditional.ternary"] = { italic = true },
             ["@markup.italic"] = { italic = true },
             ["@markup.strong"] = { bold = true },
+            ["@lsp.type.enumMember.haskell"] = { link = "@constructor" },
+            ["@lsp.type.method.haskell"] = { fg = "rose", italic = false, nocombine = true },
             CurSearch = { fg = "base", bg = "leaf", inherit = false },
             Search = { fg = "text", bg = "leaf", blend = 20, inherit = false },
             MatchParen = { link = "Search" },
