@@ -1,7 +1,6 @@
 local api = vim.api
 local map = vim.keymap.set
 local k = vim.keycode
-require("utils")
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "

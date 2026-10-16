@@ -68,6 +68,10 @@ if ok then
     map({ "n", "x", "o" }, "T", repeatable_move.builtin_T_expr, { expr = true })
 end
 
+---@class Cycle
+---@field cmd? string
+---@field info fun(): integer, integer, nil | fun(i: integer): nil
+---@type Cycle[]
 local cycles = {
     a = {
         cmd = "argument",
@@ -102,13 +106,15 @@ local cycles = {
     },
 }
 
+---@param opts { cycle: Cycle, forward: boolean }
+---@return nil
 local function move_fn(opts)
     local i, size, cmd = opts.cycle.info()
     if size == 0 then return end
     local count = vim.v.count1 * (opts.forward and 1 or -1)
     local new_i = (i + count - 1) % size + 1
     if cmd then
-        pcall(cmd)
+        pcall(cmd, new_i)
     else
         pcall(vim.cmd, new_i .. opts.cycle.cmd)
     end
